@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — Kafka Topic Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg: oklch(0.97 0.005 240);
+    --paper: oklch(0.995 0.003 240);
+    --ink: oklch(0.27 0.02 260);
+    --ink-soft: oklch(0.52 0.02 260);
+    --hair: oklch(0.89 0.01 260);
+
+    --app:    oklch(0.52 0.13 275);
+    --data:   oklch(0.52 0.10 200);
+    --ext:    oklch(0.54 0.13 320);
+    --send:   oklch(0.60 0.16 45);
+    --track:  oklch(0.54 0.13 250);
+    --ok:     oklch(0.56 0.12 155);
+    --warn:   oklch(0.62 0.14 70);
+    --bad:    oklch(0.55 0.17 25);
+
+    /* code panel */
+    --code-bg: oklch(0.23 0.02 265);
+    --code-fg: oklch(0.91 0.01 250);
+    --code-dim: oklch(0.60 0.02 255);
+    --code-key: oklch(0.74 0.13 50);
+    --code-ty:  oklch(0.78 0.10 195);
+    --code-str: oklch(0.80 0.11 145);
+    --code-pr:  oklch(0.84 0.02 250);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:var(--bg); color:var(--ink); font-family:"Space Grotesk",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ padding:40px 28px 80px; }
+  .wrap{ max-width:1140px; margin:0 auto; }
+  code, .mono{ font-family:"IBM Plex Mono",monospace; }
+
+  /* header */
+  .eyebrow{ font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-soft); }
+  h1{ font-size:32px; font-weight:600; letter-spacing:-0.015em; margin:7px 0 6px; }
+  .lede{ font-size:16px; line-height:1.5; color:var(--ink-soft); max-width:820px; }
+
+  /* section scaffold */
+  section{ margin-top:52px; }
+  .sec-head{ display:flex; align-items:baseline; gap:13px; margin-bottom:20px; padding-bottom:13px; border-bottom:1px solid var(--hair); }
+  .sec-num{ font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:#fff; background:var(--app); width:27px; height:27px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex:none; align-self:center; }
+  .sec-head h2{ font-size:21px; font-weight:600; letter-spacing:-0.01em; }
+  .sec-head .hint{ margin-left:auto; font-size:13px; color:var(--ink-soft); align-self:center; }
+
+  p.note{ font-size:14.5px; line-height:1.6; color:var(--ink); max-width:880px; }
+  p.note + p.note{ margin-top:12px; }
+
+  /* ---- flow strip (topology) ---- */
+  .flow{ display:flex; align-items:stretch; flex-wrap:wrap; gap:0; margin:6px 0 26px; }
+  .pnode{ background:var(--paper); border:1px solid var(--hair); border-left:4px solid var(--c,var(--app)); border-radius:11px; padding:11px 14px; min-width:132px; box-shadow:0 4px 14px oklch(0.5 0.03 260/.06); }
+  .pnode .pk{ font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--c,var(--app)); font-weight:600; }
+  .pnode .pn{ font-size:14px; font-weight:600; margin-top:3px; }
+  .pnode .ps{ font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:3px; }
+  .arrow{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:62px; padding:0 4px; color:var(--ink-soft); }
+  .arrow .lbl{ font-family:"IBM Plex Mono",monospace; font-size:10px; margin-bottom:2px; white-space:nowrap; }
+  .arrow .ln{ width:100%; height:2px; background:currentColor; position:relative; opacity:.55; }
+  .arrow .ln::after{ content:""; position:absolute; right:-1px; top:-3px; border-left:7px solid currentColor; border-top:4px solid transparent; border-bottom:4px solid transparent; }
+  .arrow.ok{ color:var(--ok); } .arrow.bad{ color:var(--bad); } .arrow.track{ color:var(--track); }
+
+  .c-app{ --c:var(--app); } .c-data{ --c:var(--data); } .c-ext{ --c:var(--ext); }
+  .c-send{ --c:var(--send); } .c-track{ --c:var(--track); } .c-bad{ --c:var(--bad); } .c-warn{ --c:var(--warn); }
+
+  /* ---- tables ---- */
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; background:var(--paper); border:1px solid var(--hair); border-radius:12px; overflow:hidden; }
+  thead th{ text-align:left; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; padding:12px 15px; background:oklch(0.95 0.005 250); border-bottom:1px solid var(--hair); }
+  tbody td{ padding:12px 15px; border-bottom:1px solid var(--hair); vertical-align:top; line-height:1.45; }
+  tbody tr:last-child td{ border-bottom:none; }
+  td .tname{ font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--ink); }
+  td .mono, th .mono{ font-family:"IBM Plex Mono",monospace; }
+  .pill{ display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; color:#fff; }
+
+  /* ---- code panel ---- */
+  .code{ background:var(--code-bg); border-radius:13px; padding:18px 20px; margin:4px 0 22px; overflow-x:auto; box-shadow:0 10px 30px oklch(0.3 0.03 265/.18); }
+  .code .cap{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--code-dim); margin-bottom:11px; display:flex; gap:8px; align-items:center; }
+  .code .cap b{ color:var(--code-ty); font-weight:600; letter-spacing:.04em; text-transform:none; font-size:12px; }
+  pre{ font-family:"IBM Plex Mono",monospace; font-size:13px; line-height:1.62; color:var(--code-fg); white-space:pre; }
+  .k{ color:var(--code-key); } .ty{ color:var(--code-ty); } .s{ color:var(--code-str); } .c{ color:var(--code-dim); font-style:italic; } .pr{ color:var(--code-pr); }
+
+  /* ---- card grid ---- */
+  .cards{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:6px; }
+  .card{ background:var(--paper); border:1px solid var(--hair); border-radius:13px; padding:17px 18px; box-shadow:0 4px 14px oklch(0.5 0.03 260/.05); }
+  .card .ch{ display:flex; align-items:center; gap:9px; margin-bottom:9px; }
+  .card .dot{ width:11px; height:11px; border-radius:3px; background:var(--c,var(--app)); flex:none; }
+  .card .ct{ font-size:15px; font-weight:600; letter-spacing:-0.01em; }
+  .card p{ font-size:13.5px; line-height:1.55; color:var(--ink); }
+  .card code{ font-size:12px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+
+  .callout{ display:flex; gap:13px; background:oklch(0.96 0.02 70); border:1px solid oklch(0.86 0.05 70); border-radius:12px; padding:14px 16px; margin-top:18px; }
+  .callout .ci{ font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--warn); flex:none; }
+  .callout p{ font-size:13.5px; line-height:1.55; color:var(--ink); }
+
+  ul.tight{ margin:4px 0 0 2px; padding-left:18px; }
+  ul.tight li{ font-size:13.5px; line-height:1.6; margin-bottom:6px; }
+  ul.tight code{ font-size:12px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">BulkSend · Event Backbone</div>
+    <h1>Kafka Topic Design</h1>
+    <p class="lede">Topology, message contracts, consumer groups, and failure handling for the async send pipeline — from <strong>“API produces a dispatch”</strong> through <strong>per-recipient delivery, retries, and event ingestion</strong>. Designed for at-least-once delivery with idempotent processing end to end.</p>
+  </header>
+
+  <!-- ============ 1. TOPICS ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">1</span><h2>Topics &amp; why</h2><span class="hint">command / job / retry / dead-letter / event</span></div>
+
+    <p class="note">The API never fans out inline. It writes the <code>sends</code> rows, then produces a <strong>single command</strong> per campaign. A dispatcher explodes that into <strong>one job per recipient</strong>, so a 2M-contact campaign doesn't block the request or hold a producer open for minutes. Retries live on <strong>separate delay topics</strong> (never <code>sleep()</code> on a consumer thread — that stalls the whole partition), and a dead-letter topic catches anything that exhausts them.</p>
+
+    <div class="flow">
+      <div class="pnode c-app"><div class="pk">producer</div><div class="pn">Campaign API</div><div class="ps">on Send click</div></div>
+      <div class="arrow"><span class="lbl">produce</span><span class="ln"></span></div>
+      <div class="pnode c-data"><div class="pk">topic</div><div class="pn">campaign.dispatch</div><div class="ps">1 / campaign</div></div>
+      <div class="arrow"><span class="lbl">consume</span><span class="ln"></span></div>
+      <div class="pnode c-app"><div class="pk">consumer</div><div class="pn">Dispatcher</div><div class="ps">pages contacts</div></div>
+      <div class="arrow"><span class="lbl">fan-out</span><span class="ln"></span></div>
+      <div class="pnode c-data"><div class="pk">topic</div><div class="pn">email.send</div><div class="ps">1 / recipient</div></div>
+      <div class="arrow"><span class="lbl">consume</span><span class="ln"></span></div>
+      <div class="pnode c-app"><div class="pk">consumer</div><div class="pn">Send Worker</div><div class="ps">→ SendGrid</div></div>
+    </div>
+    <div class="flow">
+      <div class="pnode c-ext"><div class="pk">webhook</div><div class="pn">SendGrid</div><div class="ps">event callback</div></div>
+      <div class="arrow track"><span class="lbl">produce</span><span class="ln"></span></div>
+      <div class="pnode c-data"><div class="pk">topic</div><div class="pn">email.events</div><div class="ps">open·click·bounce</div></div>
+      <div class="arrow track"><span class="lbl">consume</span><span class="ln"></span></div>
+      <div class="pnode c-app"><div class="pk">consumer</div><div class="pn">Event Worker</div><div class="ps">→ Postgres / Redis</div></div>
+    </div>
+
+    <table>
+      <thead><tr><th>Topic</th><th>Part.</th><th>Message key</th><th>Retention</th><th>Why it exists</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tname">campaign.dispatch</span></td><td class="mono">6</td><td class="mono">campaignId</td><td class="mono">7d</td><td>One command per “Send”. Decouples the API from fan-out cost; lets the dispatcher resume if it dies.</td></tr>
+        <tr><td><span class="tname">email.send</span></td><td class="mono">32</td><td class="mono">sendId</td><td class="mono">3d</td><td>The hot path — one job per recipient. High partition count for parallelism; high-cardinality key for even spread.</td></tr>
+        <tr><td><span class="tname">email.send.retry.5s</span></td><td class="mono">8</td><td class="mono">sendId</td><td class="mono">1d</td><td>1st retry tier (~5s backoff) for transient SendGrid errors.</td></tr>
+        <tr><td><span class="tname">email.send.retry.1m</span></td><td class="mono">8</td><td class="mono">sendId</td><td class="mono">1d</td><td>2nd retry tier (~1m backoff).</td></tr>
+        <tr><td><span class="tname">email.send.retry.15m</span></td><td class="mono">8</td><td class="mono">sendId</td><td class="mono">1d</td><td>3rd / final retry tier (~15m backoff).</td></tr>
+        <tr><td><span class="tname">email.send.dlq</span></td><td class="mono">3</td><td class="mono">sendId</td><td class="mono">30d</td><td>Exhausted or poison messages. Long retention for inspection &amp; manual replay; alarm on depth &gt; 0.</td></tr>
+        <tr><td><span class="tname">email.events</span></td><td class="mono">16</td><td class="mono">sendId</td><td class="mono">7d</td><td>Normalized provider events for analytics. Keyed by <span class="mono">sendId</span> so a message’s events stay ordered &amp; co-located.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout"><span class="ci">KEY</span><p><strong>Why key <code>email.send</code> by <code>sendId</code>, not <code>workspaceId</code>?</strong> Independent emails need no ordering, and rate limiting is enforced centrally through the Redis token bucket regardless of partition — so a high-cardinality key gives the most even spread and avoids a single large tenant creating a hot partition. Key by <code>workspaceId</code> instead only if you want strict per-tenant ordering or partition-local throttling.</p></div>
+  </section>
+
+  <!-- ============ 2. PAYLOADS ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">2</span><h2>Message payloads</h2><span class="hint">TypeScript contracts</span></div>
+
+    <p class="note">Every message carries an <strong>idempotency key</strong> and the IDs needed to reconcile against Postgres. Email content is <strong>not embedded</strong> — workers resolve and cache the rendered template by <code>campaignId</code> (Redis), keeping messages small even across millions of recipients. Only per-contact merge <code>variables</code> ride along.</p>
+
+    <div class="code">
+      <div class="cap">campaign.dispatch · <b>CampaignDispatchMessage</b></div>
+<pre><span class="k">interface</span> <span class="ty">CampaignDispatchMessage</span> {
+  <span class="pr">eventId</span>:       <span class="ty">string</span>;        <span class="c">// uuid — idempotency key for this dispatch</span>
+  <span class="pr">workspaceId</span>:   <span class="ty">string</span>;
+  <span class="pr">campaignId</span>:    <span class="ty">string</span>;
+  <span class="pr">segmentId</span>:     <span class="ty">string</span> | <span class="k">null</span>;
+  <span class="pr">resumeCursor</span>:  <span class="ty">string</span> | <span class="k">null</span>;  <span class="c">// last contact id paged — lets a crashed dispatcher resume</span>
+  <span class="pr">triggeredBy</span>:   <span class="ty">string</span>;        <span class="c">// user id</span>
+  <span class="pr">triggeredAt</span>:   <span class="ty">string</span>;        <span class="c">// ISO 8601</span>
+}</pre>
+    </div>
+
+    <div class="code">
+      <div class="cap">email.send · <b>EmailSendMessage</b></div>
+<pre><span class="k">interface</span> <span class="ty">EmailSendMessage</span> {
+  <span class="pr">sendId</span>:         <span class="ty">string</span>;        <span class="c">// PK of the sends row, created BEFORE produce</span>
+  <span class="pr">workspaceId</span>:    <span class="ty">string</span>;
+  <span class="pr">campaignId</span>:     <span class="ty">string</span>;        <span class="c">// worker resolves + caches template by this</span>
+  <span class="pr">contactId</span>:      <span class="ty">string</span>;
+  <span class="pr">to</span>:             <span class="ty">string</span>;
+  <span class="pr">variables</span>:      <span class="ty">Record</span>&lt;<span class="ty">string</span>, <span class="ty">string</span>&gt;;  <span class="c">// per-contact merge fields</span>
+  <span class="pr">attempt</span>:        <span class="ty">number</span>;        <span class="c">// 0 = first try, 1..3 = retries</span>
+  <span class="pr">idempotencyKey</span>: <span class="ty">string</span>;        <span class="c">// passed to SendGrid to dedupe provider-side</span>
+}</pre>
+    </div>
+
+    <div class="code">
+      <div class="cap">email.send.retry.* · <b>RetryMessage</b></div>
+<pre><span class="k">interface</span> <span class="ty">RetryMessage</span> {
+  <span class="pr">original</span>:    <span class="ty">EmailSendMessage</span>;   <span class="c">// the job to replay (attempt already incremented)</span>
+  <span class="pr">availableAt</span>: <span class="ty">string</span>;             <span class="c">// ISO — consumer holds until now &gt;= availableAt</span>
+  <span class="pr">lastError</span>:   { <span class="pr">code</span>: <span class="ty">string</span>; <span class="pr">message</span>: <span class="ty">string</span>; <span class="pr">retryable</span>: <span class="ty">boolean</span> };
+  <span class="pr">failedAt</span>:    <span class="ty">string</span>;
+}</pre>
+    </div>
+
+    <div class="code">
+      <div class="cap">email.send.dlq · <b>DeadLetterMessage</b></div>
+<pre><span class="k">interface</span> <span class="ty">DeadLetterMessage</span> {
+  <span class="pr">original</span>:       <span class="ty">EmailSendMessage</span>;
+  <span class="pr">attempts</span>:       <span class="ty">number</span>;     <span class="c">// total tries (= maxRetries + 1)</span>
+  <span class="pr">errors</span>:         <span class="ty">Array</span>&lt;{ <span class="pr">attempt</span>: <span class="ty">number</span>; <span class="pr">code</span>: <span class="ty">string</span>; <span class="pr">message</span>: <span class="ty">string</span>; <span class="pr">at</span>: <span class="ty">string</span> }&gt;;
+  <span class="pr">deadLetteredAt</span>: <span class="ty">string</span>;
+}</pre>
+    </div>
+
+    <div class="code">
+      <div class="cap">email.events · <b>EmailEventMessage</b></div>
+<pre><span class="k">type</span> <span class="ty">EmailEventType</span> =
+  | <span class="s">'delivered'</span> | <span class="s">'opened'</span> | <span class="s">'clicked'</span>
+  | <span class="s">'bounced'</span> | <span class="s">'unsubscribed'</span> | <span class="s">'spamreport'</span>;
+
+<span class="k">interface</span> <span class="ty">EmailEventMessage</span> {
+  <span class="pr">providerEventId</span>: <span class="ty">string</span>;          <span class="c">// SendGrid sg_event_id — dedupe key</span>
+  <span class="pr">workspaceId</span>:     <span class="ty">string</span>;
+  <span class="pr">sendId</span>:          <span class="ty">string</span>;          <span class="c">// resolved from sg_message_id</span>
+  <span class="pr">campaignId</span>:      <span class="ty">string</span>;          <span class="c">// denormalized for fast rollups</span>
+  <span class="pr">contactId</span>:       <span class="ty">string</span>;
+  <span class="pr">type</span>:            <span class="ty">EmailEventType</span>;
+  <span class="pr">occurredAt</span>:      <span class="ty">string</span>;          <span class="c">// provider timestamp</span>
+  <span class="pr">metadata</span>: {
+    <span class="pr">url</span>?:        <span class="ty">string</span>;              <span class="c">// for 'clicked'</span>
+    <span class="pr">userAgent</span>?:  <span class="ty">string</span>;
+    <span class="pr">ip</span>?:         <span class="ty">string</span>;
+    <span class="pr">bounceType</span>?: <span class="s">'hard'</span> | <span class="s">'soft'</span>;
+    <span class="pr">reason</span>?:     <span class="ty">string</span>;
+  };
+}</pre>
+    </div>
+  </section>
+
+  <!-- ============ 3. CONSUMER GROUPS ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">3</span><h2>Consumer group strategy</h2><span class="hint">one group per role · scale ≤ partitions</span></div>
+
+    <p class="note">One consumer group per <strong>logical role</strong>, scaled horizontally by adding instances up to the topic's partition count. Use <strong>cooperative-sticky</strong> assignment so adding/removing a worker only moves a few partitions instead of stop-the-world rebalancing the whole group.</p>
+
+    <table>
+      <thead><tr><th>Consumer group</th><th>Subscribes to</th><th>Does</th><th>Max useful instances</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tname">dispatch-workers</span></td><td class="mono">campaign.dispatch</td><td>Pages the segment from Postgres, inserts <span class="mono">sends</span> rows, produces <span class="mono">email.send</span> jobs.</td><td class="mono">6</td></tr>
+        <tr><td><span class="tname">send-workers</span></td><td class="mono">email.send</td><td>Redis token-bucket check → SendGrid v3 call → update <span class="mono">sends</span> row. The autoscaled hot path.</td><td class="mono">32</td></tr>
+        <tr><td><span class="tname">retry-scheduler</span></td><td class="mono">retry.5s / .1m / .15m</td><td>Waits until <span class="mono">availableAt</span>, then republishes <span class="mono">original</span> back to <span class="mono">email.send</span>.</td><td class="mono">8 / tier</td></tr>
+        <tr><td><span class="tname">event-workers</span></td><td class="mono">email.events</td><td>Idempotent upsert of events, campaign rollups (Redis + Postgres), contact suppression on bounce/unsub.</td><td class="mono">16</td></tr>
+        <tr><td><span class="tname">dlq-monitor</span></td><td class="mono">email.send.dlq</td><td>Alerting + dashboard surface; replay tooling republishes to <span class="mono">email.send</span>.</td><td class="mono">3</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout"><span class="ci">SCALE</span><p>Adding a 40th <span class="mono">send-worker</span> to a 32-partition topic buys nothing — 8 instances sit idle. Scale <strong>partitions and instances together</strong>, and over-provision partitions at creation (cheap) since you can't easily reduce them later.</p></div>
+  </section>
+
+  <!-- ============ 4. RETRY + DLQ ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">4</span><h2>Retries &amp; dead-letter queue</h2><span class="hint">max 3 retries · exponential-ish backoff</span></div>
+
+    <p class="note"><strong>Classify the error first.</strong> Transient failures (HTTP 429, 5xx, timeouts) are retryable; permanent ones (invalid address, hard bounce, suppressed contact) are a terminal business outcome — mark the <span class="mono">sends</span> row <span class="mono">failed</span>/<span class="mono">bounced</span> immediately and <em>don't</em> waste retry budget or DLQ space on them. Retryable failures move the job to the next delay tier rather than blocking the consumer.</p>
+
+    <div class="flow">
+      <div class="pnode c-data"><div class="pk">topic</div><div class="pn">email.send</div><div class="ps">attempt 0</div></div>
+      <div class="arrow bad"><span class="lbl">429 / 5xx</span><span class="ln"></span></div>
+      <div class="pnode c-warn"><div class="pk">retry · 5s</div><div class="pn">attempt 1</div></div>
+      <div class="arrow bad"><span class="lbl">fail</span><span class="ln"></span></div>
+      <div class="pnode c-warn"><div class="pk">retry · 1m</div><div class="pn">attempt 2</div></div>
+      <div class="arrow bad"><span class="lbl">fail</span><span class="ln"></span></div>
+      <div class="pnode c-warn"><div class="pk">retry · 15m</div><div class="pn">attempt 3</div></div>
+      <div class="arrow bad"><span class="lbl">fail</span><span class="ln"></span></div>
+      <div class="pnode c-bad"><div class="pk">dead letter</div><div class="pn">email.send.dlq</div><div class="ps">→ alert / replay</div></div>
+    </div>
+
+    <ul class="tight">
+      <li><strong>Delay without blocking.</strong> A failed attempt is republished to the next <code>retry.*</code> topic with <code>availableAt = now + backoff</code>. The <code>retry-scheduler</code> reads it; if the delay hasn't elapsed it <code>pause()</code>s the partition (or seeks back) instead of sleeping — so one slow message never stalls others.</li>
+      <li><strong>Bounded retries.</strong> <code>attempt</code> is incremented and carried in the payload <em>and</em> persisted on the <code>sends</code> row. After attempt 3 fails, the job is wrapped as a <code>DeadLetterMessage</code> and produced to <code>email.send.dlq</code>; the <code>sends</code> row goes <code>failed</code>.</li>
+      <li><strong>DLQ is for processing failures, not business outcomes.</strong> Hard bounces and unsubscribes never enter it. The DLQ holds genuinely stuck jobs (provider outage past the window, malformed data) for inspection and one-click replay back onto <code>email.send</code>.</li>
+      <li><strong>Honor <code>Retry-After</code>.</strong> On a 429 from SendGrid, seed <code>availableAt</code> from the provider's header rather than the fixed tier so you back off exactly as long as asked.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 5. CRASH RECOVERY ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">5</span><h2>If a worker crashes mid-campaign</h2><span class="hint">at-least-once + idempotency everywhere</span></div>
+
+    <p class="note">Nothing important lives in worker memory — campaign state is the durable Kafka log plus the <code>sends</code> rows in Postgres. A crash is just a rebalance: the group reassigns the dead worker's partitions to survivors, which resume from the <strong>last committed offset</strong>. The only hazard is reprocessing the handful of in-flight messages, which idempotency makes harmless.</p>
+
+    <div class="cards">
+      <div class="card c-app"><div class="ch"><span class="dot"></span><span class="ct">Commit after the side effect</span></div><p>Use <strong>manual offset commits</strong>, committing only after the SendGrid call returns <em>and</em> the <code>sends</code> row is updated. Crash before commit → the message is redelivered, never silently lost.</p></div>
+      <div class="card c-ok"><div class="ch"><span class="dot"></span><span class="ct">Three idempotency layers</span></div><p>Redelivery is safe because of: the DB <code>UNIQUE (campaign_id, contact_id)</code>, the SendGrid <code>idempotencyKey</code> (provider-side dedupe), and <code>providerEventId</code> for events. A reprocessed job is a no-op.</p></div>
+      <div class="card c-data"><div class="ch"><span class="dot"></span><span class="ct">Resumable dispatcher</span></div><p>If the dispatcher dies mid fan-out, it resumes from <code>resumeCursor</code> / its committed offset. Re-emitting jobs it already produced is safe — the unique constraint and <code>ON CONFLICT DO NOTHING</code> absorb duplicates.</p></div>
+      <div class="card c-app"><div class="ch"><span class="dot"></span><span class="ct">Idempotent producer</span></div><p>Run producers with <code>enable.idempotence=true</code> + <code>acks=all</code> so a retried produce after a broker hiccup doesn't write the job twice.</p></div>
+      <div class="card c-warn"><div class="ch"><span class="dot"></span><span class="ct">Slow ≠ crashed</span></div><p>Long SendGrid calls can trip <code>max.poll.interval.ms</code> and cause a false eviction. Process in bounded batches and tune the interval, so a busy worker isn't kicked from the group.</p></div>
+      <div class="card c-ext"><div class="ch"><span class="dot"></span><span class="ct">Resume, don't restart</span></div><p>Because offsets + <code>sends</code> state are durable, a restarted worker picks up exactly where the group left off. The campaign continues; already-sent recipients are skipped on reprocessing.</p></div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

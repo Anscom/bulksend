@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/app.css" />
+</head>
+<body>
+<div class="app" id="app">
+  <div class="sb-backdrop" id="sbBackdrop"></div>
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="sb-top">
+      <div class="brand">
+        <span class="brand-mark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2 12l19-9-9 19-2-8-8-2z" fill="#fff"/></svg></span>
+        BulkSend
+      </div>
+      <button class="ws-switch">
+        <span class="ws-avatar">A</span>
+        <span class="ws-meta"><span class="wn">Acme Marketing</span><span class="wp">Pro · 6 members</span></span>
+        <span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></span>
+      </button>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="nav-group">
+        <button class="nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-view="campaigns">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z" opacity=".0"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+          Campaigns
+          <span class="badge">8</span>
+        </button>
+        <button class="nav-item" data-view="contacts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13A4 4 0 0119 7"/></svg>
+          Contacts
+          <span class="badge">48.2k</span>
+        </button>
+        <button class="nav-item" data-view="segments">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>
+          Segments
+          <span class="badge">12</span>
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Insights</div>
+        <button class="nav-item" data-view="analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+          Analytics
+        </button>
+        <button class="nav-item" data-view="events">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          Event stream
+        </button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Workspace</div>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.81 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 003.6 14H3.5a2 2 0 010-4h.09A1.65 1.65 0 005 7.6l.33-.07"/></svg>
+          Settings
+        </button>
+      </div>
+    </nav>
+
+    <div class="sb-bottom">
+      <div class="usage">
+        <div class="ut"><span class="ul">Send rate · this hour</span><span class="uv">1,284 / 2,000</span></div>
+        <div class="track"><div class="fill" style="width:64%"></div></div>
+        <div class="uh"><b>716</b> sends remaining · resets in 23m</div>
+      </div>
+      <button class="user-chip">
+        <span class="avatar" style="background:var(--coral)">JL</span>
+        <span class="um"><span class="un">Jordan Lee</span><span class="ue">jordan@acme.co</span></span>
+        <span class="chev" style="color:var(--faint)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn mobile-only" id="navOpen" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="tb-title">
+        <span class="tb-crumb" id="tbCrumb">Acme Marketing</span>
+        <h1 id="tbTitle">Dashboard</h1>
+      </div>
+      <label class="tb-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input placeholder="Search campaigns, contacts…" />
+        <span class="kbd">⌘K</span>
+      </label>
+      <div class="tb-actions">
+        <button class="icon-btn" aria-label="Notifications"><span class="dot"></span><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg></button>
+        <button class="btn btn-primary" data-view="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New campaign</button>
+      </div>
+    </header>
+
+    <div class="view-wrap" id="viewWrap">
+      <!-- ===== DASHBOARD ===== -->
+      <section class="view active" id="view-dashboard">
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kl"><span class="ki"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></span> Emails sent</div>
+            <div class="kv">1.24M</div>
+            <div class="kf"><span class="trend up">▲ 12.4%</span><span class="kfm">vs last month</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kl"><span class="ki g"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> Delivery rate</div>
+            <div class="kv">99.2%</div>
+            <div class="kf"><span class="trend up">▲ 0.3%</span><span class="kfm">1.23M delivered</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kl"><span class="ki c"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span> Avg open rate</div>
+            <div class="kv">58.6%</div>
+            <div class="kf"><span class="trend up">▲ 4.1%</span><span class="kfm">unique opens</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kl"><span class="ki a"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span> Active contacts</div>
+            <div class="kv">48,210</div>
+            <div class="kf"><span class="trend down">▼ 0.8%</span><span class="kfm">after unsubs</span></div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-head">
+              <div><h3>Sending volume</h3><div class="sub">Delivered emails · last 30 days</div></div>
+              <div class="legend"><span class="li"><i style="background:var(--indigo)"></i> Delivered</span><span class="li"><i style="background:var(--indigo-tint2)"></i> Opened</span></div>
+            </div>
+            <div class="card-pad">
+              <div class="chart-bars" id="volChart"></div>
+              <div class="chart-x" id="volX"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Recent activity</h3><div class="sub">Live event stream</div></div></div>
+            <div class="card-pad" style="padding-top:6px;padding-bottom:6px;">
+              <div class="feed" id="dashFeed"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head">
+            <div><h3>Recent campaigns</h3></div>
+            <button class="btn btn-subtle btn-sm" data-view="campaigns">View all</button>
+          </div>
+          <div class="table-card" style="border:none;border-radius:0;">
+            <table class="tbl">
+              <thead><tr><th>Campaign</th><th>Status</th><th class="hide-sm">Recipients</th><th>Open rate</th><th class="hide-sm">Sent</th></tr></thead>
+              <tbody id="dashCampaigns"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CAMPAIGNS ===== -->
+      <section class="view" id="view-campaigns">
+        <div class="view-head">
+          <div class="vh-l"><h2>Campaigns</h2><div class="vh-sub">Create, schedule, and track your email campaigns</div></div>
+          <div class="vh-actions"><button class="btn btn-ghost btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filter</button><button class="btn btn-primary" data-view="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New campaign</button></div>
+        </div>
+        <div style="margin-bottom:18px;"><div class="tabs">
+          <button class="tab active">All <span class="cnt">8</span></button>
+          <button class="tab">Sending <span class="cnt">1</span></button>
+          <button class="tab">Sent <span class="cnt">4</span></button>
+          <button class="tab">Scheduled <span class="cnt">2</span></button>
+          <button class="tab">Draft <span class="cnt">1</span></button>
+        </div></div>
+        <div class="table-card">
+          <table class="tbl">
+            <thead><tr><th>Campaign</th><th>Status</th><th class="hide-sm">Segment</th><th class="hide-sm">Recipients</th><th>Open</th><th>Click</th><th class="hide-sm">Date</th></tr></thead>
+            <tbody id="campaignsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== CAMPAIGN DETAIL ===== -->
+      <section class="view" id="view-campaign">
+        <a class="back-link" data-view="campaigns"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg> Back to campaigns</a>
+        <div class="detail-head">
+          <div class="detail-top">
+            <div>
+              <h2>Spring Launch 2026 <span class="badge sending"><span class="d"></span>Sending</span></h2>
+              <div class="detail-meta">
+                <span class="dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>Subject: <b>Your spring upgrade is here ✨</b></span>
+                <span class="dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>Segment: <b>Active subscribers</b></span>
+                <span class="dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Started <b>Today, 9:14 AM</b></span>
+              </div>
+            </div>
+            <div class="vh-actions"><button class="btn btn-ghost btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>Pause</button><button class="btn btn-ghost btn-sm">Export</button></div>
+          </div>
+          <div style="margin-top:18px;">
+            <div class="ut" style="display:flex;justify-content:space-between;gap:12px;white-space:nowrap;font-family:var(--mono);font-size:11.5px;color:var(--slate);margin-bottom:7px;"><span>Campaign progress</span><span><b style="color:var(--ink)">35,184</b> / 48,210 sent · 73%</span></div>
+            <div class="track" style="height:8px;border-radius:20px;background:var(--line);overflow:hidden;"><div style="height:100%;width:73%;border-radius:20px;background:linear-gradient(90deg,var(--indigo),var(--coral));"></div></div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-cell"><div class="sl">Recipients</div><div class="sv">48,210</div><div class="sr">queued</div></div>
+          <div class="stat-cell accent2"><div class="sv-wrap"></div><div class="sl">Delivered</div><div class="sv">34,902</div><div class="sr">99.2%</div></div>
+          <div class="stat-cell accent"><div class="sl">Unique opens</div><div class="sv">21,438</div><div class="sr">61.4%</div></div>
+          <div class="stat-cell"><div class="sl">Clicks</div><div class="sv">6,352</div><div class="sr">18.2%</div></div>
+          <div class="stat-cell"><div class="sl">Bounced</div><div class="sv">282</div><div class="sr">0.8%</div></div>
+          <div class="stat-cell"><div class="sl">Unsubscribed</div><div class="sv">94</div><div class="sr">0.27%</div></div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-head"><div><h3>Engagement over time</h3><div class="sub">Opens &amp; clicks since send</div></div><div class="legend"><span class="li"><i style="background:var(--indigo)"></i> Opens</span><span class="li"><i style="background:var(--coral)"></i> Clicks</span></div></div>
+            <div class="card-pad"><div class="chart-bars" id="engChart"></div><div class="chart-x" id="engX"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Delivery funnel</h3></div></div>
+            <div class="card-pad">
+              <div class="funnel">
+                <div class="fr"><div class="frt"><span class="fn">Sent</span><span class="fv"><b>35,184</b></span></div><div class="ftrack"><div class="ffill" style="width:100%;background:var(--indigo)">100%</div></div></div>
+                <div class="fr"><div class="frt"><span class="fn">Delivered</span><span class="fv"><b>34,902</b></span></div><div class="ftrack"><div class="ffill" style="width:99%;background:oklch(0.55 0.14 250)">99.2%</div></div></div>
+                <div class="fr"><div class="frt"><span class="fn">Opened</span><span class="fv"><b>21,438</b></span></div><div class="ftrack"><div class="ffill" style="width:61%;background:var(--coral)">61.4%</div></div></div>
+                <div class="fr"><div class="frt"><span class="fn">Clicked</span><span class="fv"><b>6,352</b></span></div><div class="ftrack"><div class="ffill" style="width:18%;background:oklch(0.6 0.15 36)">18.2%</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head"><div><h3>Top clicked links</h3></div></div>
+          <table class="tbl">
+            <thead><tr><th>URL</th><th>Unique clicks</th><th class="hide-sm">Click share</th></tr></thead>
+            <tbody>
+              <tr><td class="t-mono">acme.co/spring/upgrade</td><td class="t-mono">3,128</td><td class="hide-sm"><div class="t-rate"><div class="rbar"><i class="c" style="width:82%"></i></div><span class="rv">49%</span></div></td></tr>
+              <tr><td class="t-mono">acme.co/whats-new</td><td class="t-mono">1,642</td><td class="hide-sm"><div class="t-rate"><div class="rbar"><i class="c" style="width:43%"></i></div><span class="rv">26%</span></div></td></tr>
+              <tr><td class="t-mono">acme.co/pricing</td><td class="t-mono">994</td><td class="hide-sm"><div class="t-rate"><div class="rbar"><i class="c" style="width:26%"></i></div><span class="rv">16%</span></div></td></tr>
+              <tr><td class="t-mono">acme.co/docs/getting-started</td><td class="t-mono">588</td><td class="hide-sm"><div class="t-rate"><div class="rbar"><i class="c" style="width:15%"></i></div><span class="rv">9%</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== CONTACTS ===== -->
+      <section class="view" id="view-contacts">
+        <div class="view-head">
+          <div class="vh-l"><h2>Contacts</h2><div class="vh-sub">48,210 contacts across 12 segments</div></div>
+          <div class="vh-actions"><button class="btn btn-ghost btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Export</button><button class="btn btn-primary" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></svg>Import CSV</button></div>
+        </div>
+
+        <div class="kpi-grid" style="margin-bottom:18px;">
+          <div class="kpi"><div class="kl">Total contacts</div><div class="kv">48,210</div></div>
+          <div class="kpi"><div class="kl">Subscribed</div><div class="kv" style="color:var(--green)">46,980</div></div>
+          <div class="kpi"><div class="kl">Unsubscribed</div><div class="kv" style="color:var(--slate)">948</div></div>
+          <div class="kpi"><div class="kl">Bounced</div><div class="kv" style="color:var(--red)">282</div></div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <div class="tb-search" style="display:flex;width:300px;max-width:100%;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="Search by email or name…" /></div>
+          <div class="tabs"><button class="tab active">All</button><button class="tab">Subscribed</button><button class="tab">Unsubscribed</button><button class="tab">Bounced</button></div>
+        </div>
+
+        <div class="table-card">
+          <table class="tbl">
+            <thead><tr><th>Contact</th><th>Status</th><th class="hide-sm">Tags</th><th class="hide-sm">Added</th><th class="t-actions"></th></tr></thead>
+            <tbody id="contactsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== PLACEHOLDER VIEWS ===== -->
+      <section class="view" id="view-new">
+        <a class="back-link" data-view="campaigns"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg> Cancel</a>
+        <div class="view-head" id="composerHead"><div class="vh-l"><h2>New campaign</h2><div class="vh-sub">Compose, choose your audience, and schedule the send.</div></div></div>
+
+        <div class="composer" id="composer">
+          <div class="composer-main">
+            <div class="stepper">
+              <div class="cstep active" data-jump="1"><span class="cnum">1</span><span class="clabel">Content</span></div>
+              <span class="cstep-line"></span>
+              <div class="cstep" data-jump="2"><span class="cnum">2</span><span class="clabel">Audience</span></div>
+              <span class="cstep-line"></span>
+              <div class="cstep" data-jump="3"><span class="cnum">3</span><span class="clabel">Schedule</span></div>
+              <span class="cstep-line"></span>
+              <div class="cstep" data-jump="4"><span class="cnum">4</span><span class="clabel">Review</span></div>
+            </div>
+
+            <!-- STEP 1 — CONTENT -->
+            <div class="step-panel active" data-step="1">
+              <div class="card card-pad">
+                <div class="field">
+                  <label>Campaign name <span style="color:var(--faint);font-weight:400">· internal only</span></label>
+                  <input class="inp" id="fName" value="Summer Sale 2026" />
+                </div>
+                <div class="field-row">
+                  <div class="field"><label>From name</label><input class="inp" id="fFromName" value="Acme Team" /></div>
+                  <div class="field"><label>From address</label><div class="inp-affix"><input id="fFromEmail" value="hello" /><span class="pfx">@acme.co</span></div></div>
+                </div>
+                <div class="field">
+                  <label>Subject line</label>
+                  <input class="inp" id="fSubject" value="☀️ Summer just got 30% cooler" />
+                  <div class="hint">Personalize with <code style="font-family:var(--mono);background:var(--bg-2);padding:1px 5px;border-radius:4px">{{first_name}}</code> — resolved per contact at send time.</div>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label>Email body</label>
+                  <div class="toolbar">
+                    <button class="tb-btn" title="Bold" style="font-weight:800">B</button>
+                    <button class="tb-btn" title="Italic" style="font-style:italic">i</button>
+                    <button class="tb-btn" title="Link"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1.5-1.5"/></svg></button>
+                    <span class="tb-sep"></span>
+                    <button class="tb-btn" title="Merge tag" style="font-family:var(--mono);font-size:11px;width:auto;padding:0 8px">&#123;&#123; &#125;&#125;</button>
+                    <button class="tb-btn" title="Image"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+                  </div>
+                  <textarea class="inp" id="fBody">Hi {{first_name}},
+
+Summer's here and so is our biggest sale of the year. For the next 72 hours, everything in the Acme store is 30% off — no code needed.
+
+Tap below to start saving.</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 2 — AUDIENCE -->
+            <div class="step-panel" data-step="2">
+              <div class="card card-pad">
+                <div class="field" style="margin-bottom:14px"><label>Choose a segment to send to</label></div>
+                <div class="seg-pick" id="segPick">
+                  <button class="seg-card selected" data-seg="Active subscribers" data-count="46980">
+                    <span class="seg-radio"></span>
+                    <span class="seg-body"><span class="seg-name">Active subscribers</span><span class="seg-desc">Opened or clicked in the last 90 days</span></span>
+                    <span class="seg-count">46,980<small>contacts</small></span>
+                  </button>
+                  <button class="seg-card" data-seg="All contacts" data-count="48210">
+                    <span class="seg-radio"></span>
+                    <span class="seg-body"><span class="seg-name">All contacts</span><span class="seg-desc">Every subscribed contact in the workspace</span></span>
+                    <span class="seg-count">48,210<small>contacts</small></span>
+                  </button>
+                  <button class="seg-card" data-seg="Pro & Enterprise" data-count="12440">
+                    <span class="seg-radio"></span>
+                    <span class="seg-body"><span class="seg-name">Pro &amp; Enterprise</span><span class="seg-desc">Contacts on a paid plan</span></span>
+                    <span class="seg-count">12,440<small>contacts</small></span>
+                  </button>
+                  <button class="seg-card" data-seg="New signups (30d)" data-count="3180">
+                    <span class="seg-radio"></span>
+                    <span class="seg-body"><span class="seg-name">New signups (30d)</span><span class="seg-desc">Joined in the last 30 days</span></span>
+                    <span class="seg-count">3,180<small>contacts</small></span>
+                  </button>
+                </div>
+                <div class="callout-box">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+                  <div class="cbt">Unsubscribed and hard-bounced contacts are <b>automatically suppressed</b> — they're excluded from the count above and will never receive this send.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 3 — SCHEDULE -->
+            <div class="step-panel" data-step="3">
+              <div class="card card-pad">
+                <div class="field" style="margin-bottom:14px"><label>When should this send?</label></div>
+                <div class="radio-cards" id="schedPick">
+                  <button class="radio-card selected" data-sched="now">
+                    <div class="rc-top"><span class="rc-dot"></span><span class="rc-name">Send now</span></div>
+                    <div class="rc-desc">Queue immediately. The engine fans out and starts delivering within seconds.</div>
+                  </button>
+                  <button class="radio-card" data-sched="later">
+                    <div class="rc-top"><span class="rc-dot"></span><span class="rc-name">Schedule</span></div>
+                    <div class="rc-desc">Pick a date and time. We'll trigger the send automatically.</div>
+                  </button>
+                </div>
+                <div class="field" id="schedWhen" style="display:none;margin-top:18px;margin-bottom:0">
+                  <label>Send date &amp; time</label>
+                  <input class="inp" type="datetime-local" id="fSchedAt" value="2026-06-12T09:00" />
+                  <div class="hint">Times are in your workspace timezone (UTC−5 · America/New_York).</div>
+                </div>
+                <div class="callout-box" style="background:var(--indigo-tint);border-color:var(--indigo-tint2)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                  <div class="cbt">At your plan's rate of <b>2,000 emails/hour</b>, this send to <span id="rateRecip">46,980</span> contacts will take about <b id="rateEta">~23.5 hours</b> to fully deliver. Sends are throttled per workspace to protect deliverability.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 4 — REVIEW -->
+            <div class="step-panel" data-step="4">
+              <div class="card">
+                <div class="card-head"><div><h3>Review &amp; send</h3><div class="sub">Confirm everything looks right before launching.</div></div></div>
+                <div class="card-pad">
+                  <div class="review-list" id="reviewList"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="composer-foot">
+              <button class="btn btn-ghost" id="cBack" style="visibility:hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Back</button>
+              <span class="spacer"></span>
+              <button class="btn btn-primary" id="cNext">Continue<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <button class="btn btn-coral" id="cSend" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>Send campaign</button>
+            </div>
+          </div>
+
+          <!-- LIVE PREVIEW -->
+          <div class="preview-col">
+            <div class="email-preview">
+              <div class="ep-bar"><span class="dots" style="display:flex;gap:6px"><i style="width:10px;height:10px;border-radius:50%;background:var(--line);display:block"></i><i style="width:10px;height:10px;border-radius:50%;background:var(--line);display:block"></i><i style="width:10px;height:10px;border-radius:50%;background:var(--line);display:block"></i></span><span class="ept">Inbox preview</span></div>
+              <div class="ep-head">
+                <div class="ep-subject" id="pvSubject"></div>
+                <div class="ep-from"><span class="epa" id="pvAvatar">A</span><div><div class="epf-name" id="pvFromName"></div><div class="epf-meta" id="pvFromEmail"></div></div></div>
+              </div>
+              <div class="ep-body"><span id="pvBody"></span><span class="ep-cta">Shop the sale →</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="view" id="view-generic">
+        <div class="view-head"><div class="vh-l"><h2 id="genTitle">Coming soon</h2><div class="vh-sub" id="genSub">This area is part of the full workspace.</div></div></div>
+        <div class="card card-pad" style="text-align:center;padding:60px 20px;">
+          <div class="dropzone" style="border:none;background:none;">
+            <div class="dzi" id="genIcon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></div>
+            <div class="dzt" id="genName">Section placeholder</div>
+            <div class="dzs">Wired into the same navigation — say the word and I'll build it out.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

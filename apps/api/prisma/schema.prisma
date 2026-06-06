@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  owner
+  admin
+  member
+}
+
+enum ContactStatus {
+  subscribed
+  unsubscribed
+  bounced
+}
+
+enum CampaignStatus {
+  draft
+  scheduled
+  sending
+  sent
+  paused
+  failed
+}
+
+enum SendStatus {
+  pending
+  sent
+  failed
+  bounced
+  unsubscribed
+}
+
+enum EventType {
+  opened
+  clicked
+  bounced
+  unsubscribed
+  delivered
+  spam
+}
+
+model Workspace {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  slug              String     @unique
+  plan              String     @default("free")
+  sendRatePerHour   Int        @default(100) @map("send_rate_per_hour")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  users             User[]
+  contacts          Contact[]
+  tags              Tag[]
+  segments          Segment[]
+  campaigns         Campaign[]
+  sends             Send[]
+  emailEvents       EmailEvent[]
+
+  @@map("workspaces")
+}
+
+model User {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String     @map("workspace_id") @db.Uuid
+  email         String     @unique
+  name          String
+  passwordHash  String     @map("password_hash")
+  role          UserRole   @default(member)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("users")
+}
+
+model Contact {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String        @map("workspace_id") @db.Uuid
+  email         String
+  firstName     String?       @map("first_name")
+  lastName      String?       @map("last_name")
+  status        ContactStatus @default(subscribed)
+  attributes    Json          @default("{}")
+  deletedAt     DateTime?     @map("deleted_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tags          ContactTag[]
+  sends         Send[]
+
+  @@unique([workspaceId, email], name: "workspaceId_email")
+  @@index([workspaceId, status])
+  @@index([workspaceId, deletedAt])
+  @@map("contacts")
+}
+
+model Tag {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String       @map("workspace_id") @db.Uuid
+  name          String
+  color         String       @default("#6366f1")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts      ContactTag[]
+
+  @@unique([workspaceId, name])
+  @@map("tags")
+}
+
+model ContactTag {
+  contactId     String   @map("contact_id") @db.Uuid
+  tagId         String   @map("tag_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  contact       Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag           Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model Segment {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String     @map("workspace_id") @db.Uuid
+  name          String
+  filters       Json       @default("[]")
+  contactCount  Int        @default(0) @map("contact_count")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaigns     Campaign[]
+
+  @@index([workspaceId])
+  @@map("segments")
+}
+
+model Campaign {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String         @map("workspace_id") @db.Uuid
+  name             String
+  subject          String
+  previewText      String?        @map("preview_text")
+  fromName         String         @map("from_name")
+  fromEmail        String         @map("from_email")
+  bodyHtml         String         @map("body_html")
+  bodyText         String         @map("body_text")
+  segmentId        String?        @map("segment_id") @db.Uuid
+  status           CampaignStatus @default(draft)
+  scheduledAt      DateTime?      @map("scheduled_at")
+  sentAt           DateTime?      @map("sent_at")
+  totalRecipients  Int            @default(0) @map("total_recipients")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  segment          Segment?       @relation(fields: [segmentId], references: [id])
+  sends            Send[]
+  emailEvents      EmailEvent[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, scheduledAt], map: "campaigns_due_idx")
+  @@map("campaigns")
+}
+
+model Send {
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId         String     @map("workspace_id") @db.Uuid
+  campaignId          String     @map("campaign_id") @db.Uuid
+  contactId           String     @map("contact_id") @db.Uuid
+  status              SendStatus @default(pending)
+  providerMessageId   String?    @unique @map("provider_message_id")
+  sentAt              DateTime?  @map("sent_at")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  workspace           Workspace  @relation(fields: [workspaceId], references: [id])
+  campaign            Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact             Contact    @relation(fields: [contactId], references: [id])
+  emailEvents         EmailEvent[]
+
+  @@unique([campaignId, contactId])
+  @@index([workspaceId, campaignId])
+  @@index([workspaceId, status])
+  @@map("sends")
+}
+
+model EmailEvent {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId     String    @map("workspace_id") @db.Uuid
+  sendId          String    @map("send_id") @db.Uuid
+  campaignId      String    @map("campaign_id") @db.Uuid
+  type            EventType
+  metadata        Json      @default("{}")
+  providerEventId String?   @unique @map("provider_event_id")
+  occurredAt      DateTime  @map("occurred_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+  send            Send      @relation(fields: [sendId], references: [id], onDelete: Cascade)
+  campaign        Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, type, occurredAt])
+  @@index([workspaceId, occurredAt])
+  @@map("email_events")
+}

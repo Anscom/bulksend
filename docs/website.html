@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — Email campaigns that actually scale</title>
+<meta name="description" content="Multi-tenant email campaign platform with an async sending engine, real-time event tracking, and per-workspace rate limiting. Built on Kafka, Redis & SendGrid." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav" id="nav">
+  <div class="container nav-inner">
+    <a href="#top" class="brand">
+      <span class="brand-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12l19-9-9 19-2-8-8-2z" fill="#fff"/></svg>
+      </span>
+      BulkSend
+    </a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pipeline">How it works</a>
+      <a href="#infra">Platform</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#" class="signin">Sign in</a>
+      <a href="#pricing" class="btn btn-primary">Start free</a>
+    </div>
+    <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </div>
+</header>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#features">Features</a>
+  <a href="#pipeline">How it works</a>
+  <a href="#infra">Platform</a>
+  <a href="#pricing">Pricing</a>
+  <div class="mm-cta">
+    <a href="#" class="btn btn-ghost">Sign in</a>
+    <a href="#pricing" class="btn btn-primary">Start free</a>
+  </div>
+</div>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">Email infrastructure</span>
+          <h1 class="h-display">Campaigns that<br/><span class="accent">actually scale.</span></h1>
+          <p class="hero-sub lede">Upload millions of contacts, hit send, and let the async engine fan out, throttle, and track every message — without melting your workers.</p>
+          <div class="hero-actions">
+            <a href="#pricing" class="btn btn-coral btn-lg btn-arrow">Start sending free <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            <a href="#pipeline" class="btn btn-dark-ghost btn-lg">See how it works</a>
+          </div>
+          <div class="hero-meta">
+            <span class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> No credit card</span>
+            <span class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> 100 emails/hr free</span>
+            <span class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Setup in minutes</span>
+          </div>
+        </div>
+
+        <!-- product mockup -->
+        <div class="hero-mock">
+          <div class="mock">
+            <div class="mock-bar">
+              <span class="dots"><i></i><i></i><i></i></span>
+              <span class="addr">app.bulksend.io/campaigns/spring-launch</span>
+            </div>
+            <div class="mock-body">
+              <div class="mock-head">
+                <div>
+                  <div class="ct">Spring Launch 2026</div>
+                  <div class="cs">Segment · Active subscribers · 48,210 contacts</div>
+                </div>
+                <span class="mock-status"><span class="pulse"></span> Sending</span>
+              </div>
+              <div class="mock-stats">
+                <div class="mstat"><div class="mv">35,184</div><div class="ml">Sent</div></div>
+                <div class="mstat accent2"><div class="mv">34,902</div><div class="ml">Delivered</div></div>
+                <div class="mstat accent"><div class="mv">61.4%</div><div class="ml">Open rate</div></div>
+                <div class="mstat"><div class="mv">18.2%</div><div class="ml">Click rate</div></div>
+              </div>
+              <div class="mock-progress">
+                <div class="pl"><span>Campaign progress</span><span>35,184 / 48,210</span></div>
+                <div class="track"><div class="fill"></div></div>
+              </div>
+              <div class="mock-chart">
+                <span class="bar" style="height:38%"></span>
+                <span class="bar" style="height:54%"></span>
+                <span class="bar" style="height:47%"></span>
+                <span class="bar" style="height:72%"></span>
+                <span class="bar" style="height:65%"></span>
+                <span class="bar" style="height:88%"></span>
+                <span class="bar" style="height:79%"></span>
+                <span class="bar" style="height:96%"></span>
+                <span class="bar" style="height:84%"></span>
+                <span class="bar" style="height:70%"></span>
+                <span class="bar" style="height:58%"></span>
+                <span class="bar" style="height:44%"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STAT STRIP ============ -->
+  <section class="strip">
+    <div class="container section-sm">
+      <div class="strip-inner">
+        <div class="si reveal"><div class="v">2<span class="accent">B+</span></div><div class="l">Emails / month</div></div>
+        <div class="si reveal"><div class="v">99.9<span class="accent">%</span></div><div class="l">Delivery uptime</div></div>
+        <div class="si reveal"><div class="v">&lt;200<span class="accent">ms</span></div><div class="l">Event tracking lag</div></div>
+        <div class="si reveal"><div class="v">12<span class="accent">k</span></div><div class="l">Sends / second peak</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow center">Everything in one platform</span>
+        <h2 class="h-section">From CSV to delivered,<br/>tracked, and analyzed.</h2>
+        <p class="lede">A complete sending stack — contact management, segmentation, scheduling, and an engine that handles the hard parts of sending at volume.</p>
+      </div>
+      <div class="feat-grid">
+        <div class="feat reveal">
+          <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg></div>
+          <h3>Multi-tenant workspaces</h3>
+          <p>Isolated workspaces with their own contacts, campaigns, members, and sending limits. Row-level tenant isolation all the way down.</p>
+          <span class="feat-tag">workspaces · users · roles</span>
+        </div>
+        <div class="feat reveal c2">
+          <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13l2 2 4-4"/></svg></div>
+          <h3>CSV upload & segments</h3>
+          <p>Import millions of contacts with column mapping, then slice them into dynamic segments with custom-field filters that evaluate live.</p>
+          <span class="feat-tag">import · tags · segmentation</span>
+        </div>
+        <div class="feat reveal c3">
+          <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+          <h3>Schedule & trigger</h3>
+          <p>Build a campaign, pick a segment, and schedule it — or fire it now. Idempotent triggers mean a double-click never double-sends.</p>
+          <span class="feat-tag">campaigns · scheduling</span>
+        </div>
+        <div class="feat reveal">
+          <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></div>
+          <h3>Async sending engine</h3>
+          <p>Every send fans out per contact across Kafka workers that autoscale with the queue — a 2M-contact blast never blocks a request.</p>
+          <span class="feat-tag">kafka fan-out · workers</span>
+        </div>
+        <div class="feat reveal c2">
+          <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></div>
+          <h3>Real-time event tracking</h3>
+          <p>Opens, clicks, bounces, and unsubscribes stream back through webhooks and land in your dashboard in under a second.</p>
+          <span class="feat-tag">opens · clicks · bounces</span>
+        </div>
+        <div class="feat reveal c3">
+          <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/></svg></div>
+          <h3>Per-workspace rate limits</h3>
+          <p>Redis-backed token buckets throttle each workspace independently, protecting your sender reputation and provider quota.</p>
+          <span class="feat-tag">redis · token bucket</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PIPELINE ============ -->
+  <section class="section pipeline" id="pipeline">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow center">The send pipeline</span>
+        <h2 class="h-section">Click send → delivered → tracked.</h2>
+        <p class="lede">One button kicks off a pipeline built for at-least-once delivery and idempotent processing end to end.</p>
+      </div>
+      <div class="pipe-flow">
+        <div class="pstep reveal">
+          <div class="pn">01</div>
+          <h4>Trigger</h4>
+          <p>The API persists the run and produces a single dispatch command — the request returns instantly.</p>
+          <span class="arr"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
+        <div class="pstep reveal">
+          <div class="pn">02</div>
+          <h4>Fan out</h4>
+          <p>A dispatcher pages the segment and enqueues one job per contact onto Kafka.</p>
+          <span class="arr"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
+        <div class="pstep reveal">
+          <div class="pn">03</div>
+          <h4>Throttle & send</h4>
+          <p>Workers check the Redis rate limit and suppression cache, then deliver via SendGrid.</p>
+          <span class="arr"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
+        <div class="pstep reveal">
+          <div class="pn">04</div>
+          <h4>Track</h4>
+          <p>Delivery events flow back through webhooks and into the events stream, idempotently.</p>
+          <span class="arr"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
+        <div class="pstep reveal">
+          <div class="pn">05</div>
+          <h4>Analyze</h4>
+          <p>Live counters update the dashboard; the campaign closes when every contact is settled.</p>
+          <span class="arr"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INFRA ============ -->
+  <section class="section" id="infra">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">Built on proven infrastructure</span>
+        <h2 class="h-section">Boring where it counts.<br/>Fast where it matters.</h2>
+      </div>
+      <div class="infra-grid">
+        <div class="stack-list">
+          <div class="stack-row reveal"><span class="sk">Queue</span><span class="sn">Kafka</span><span class="sd">Durable per-contact fan-out & retries</span></div>
+          <div class="stack-row reveal"><span class="sk">Cache</span><span class="sn">Redis</span><span class="sd">Rate limits, suppression, live counters</span></div>
+          <div class="stack-row reveal"><span class="sk">Database</span><span class="sn">PostgreSQL</span><span class="sd">Source of truth via Prisma</span></div>
+          <div class="stack-row reveal"><span class="sk">Delivery</span><span class="sn">SendGrid</span><span class="sd">Provider-grade deliverability</span></div>
+          <div class="stack-row reveal"><span class="sk">Runtime</span><span class="sn">Cloud Run</span><span class="sd">Autoscaling stateless workers</span></div>
+        </div>
+        <div class="code-card reveal">
+          <div class="cc-bar"><i></i><i></i><i></i><span class="fn">send-campaign.ts</span></div>
+<pre><span class="c">// one call, the platform handles the rest</span>
+<span class="k">await</span> bulksend.campaigns.<span class="fn2">send</span>({
+  campaignId: <span class="s">"spring-launch"</span>,
+  segment: <span class="s">"active-subscribers"</span>,
+}, { idempotencyKey: req.id });
+
+<span class="c">// → 202 Accepted · 48,210 queued</span>
+<span class="c">// → fan-out, throttle, deliver, track</span>
+<span class="c">// → live stats on the dashboard</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRICING ============ -->
+  <section class="section" id="pricing" style="background:var(--bg-tint);">
+    <div class="container">
+      <div class="section-head center">
+        <span class="eyebrow center">Pricing</span>
+        <h2 class="h-section">Start free. Scale when you send.</h2>
+        <p class="lede">Limits are enforced per workspace by the same Redis rate limiter that powers the platform.</p>
+      </div>
+      <div class="price-grid">
+        <div class="price reveal">
+          <div class="pp-name">Free</div>
+          <div class="pp-price">$0<span class="per"> / mo</span></div>
+          <p class="pp-desc">For testing and small lists. Everything you need to send your first campaign.</p>
+          <div class="pp-cta"><a href="#" class="btn btn-ghost btn-lg">Start free</a></div>
+          <ul>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>1 workspace</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><strong>100</strong> emails / hour <span class="rl">rl: free</span></span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>CSV import & segments</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Open & click tracking</span></li>
+          </ul>
+        </div>
+        <div class="price featured reveal">
+          <span class="pp-badge">Popular</span>
+          <div class="pp-name">Pro</div>
+          <div class="pp-price">$49<span class="per"> / mo</span></div>
+          <p class="pp-desc">For growing teams sending real volume with full analytics and priority throughput.</p>
+          <div class="pp-cta"><a href="#" class="btn btn-coral btn-lg">Start 14-day trial</a></div>
+          <ul>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Unlimited workspaces</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><strong>2,000</strong> emails / hour <span class="rl">rl: paid</span></span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Full analytics dashboard</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Webhook event exports</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Priority send queue</span></li>
+          </ul>
+        </div>
+        <div class="price reveal">
+          <div class="pp-name">Enterprise</div>
+          <div class="pp-price">Custom</div>
+          <p class="pp-desc">For high-volume senders that need dedicated throughput and support.</p>
+          <div class="pp-cta"><a href="#" class="btn btn-ghost btn-lg">Talk to sales</a></div>
+          <ul>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Custom rate limits</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Dedicated IP pools</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>SSO & audit logs</span></li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>SLA & priority support</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CTA ============ -->
+  <section class="section cta">
+    <div class="container">
+      <span class="eyebrow center">Ready when you are</span>
+      <h2>Send your first campaign<br/>in the next ten minutes.</h2>
+      <p class="lede">Free to start, no credit card. Scale to millions when you're ready.</p>
+      <div class="cta-actions">
+        <a href="#" class="btn btn-coral btn-lg btn-arrow">Create your workspace <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a href="#pricing" class="btn btn-dark-ghost btn-lg">View pricing</a>
+      </div>
+      <p class="fineprint">100 emails/hr free · upgrade anytime</p>
+    </div>
+  </section>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a href="#top" class="brand">
+          <span class="brand-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12l19-9-9 19-2-8-8-2z" fill="#fff"/></svg></span>
+          BulkSend
+        </a>
+        <p>Email campaign infrastructure for teams that send at scale. Async, tracked, and reliable.</p>
+      </div>
+      <div class="foot-col">
+        <h5>Product</h5>
+        <a href="#features">Features</a>
+        <a href="#pipeline">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#">Changelog</a>
+      </div>
+      <div class="foot-col">
+        <h5>Developers</h5>
+        <a href="#">API reference</a>
+        <a href="#">Webhooks</a>
+        <a href="#">Status</a>
+        <a href="#">Docs</a>
+      </div>
+      <div class="foot-col">
+        <h5>Company</h5>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Contact</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p>© 2026 BulkSend, Inc. All rights reserved.</p>
+      <div class="foot-social">
+        <a href="#" aria-label="X"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7 8 8.2 12h-6.4l-5-7.3L6 22H2.9l7.5-8.6L2.5 2h6.5l4.5 6.6L18.9 2zm-1.1 18h1.7L7.3 3.8H5.4L17.8 20z"/></svg></a>
+        <a href="#" aria-label="GitHub"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.6 0 0 .8-.3 2.7 1a9.4 9.4 0 015 0c1.9-1.3 2.7-1 2.7-1 .5 1.3.2 2.3.1 2.6.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.8v2.7c0 .3.2.6.7.5A10 10 0 0012 2z"/></svg></a>
+        <a href="#" aria-label="LinkedIn"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 8.98h4V21H3V8.98zM9 8.98h3.8v1.64h.05c.53-1 1.83-2.05 3.77-2.05 4 0 4.75 2.65 4.75 6.1V21h-4v-5.34c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21H9V8.98z"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

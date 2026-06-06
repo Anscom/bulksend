@@ -1,0 +1,38 @@
+{
+  "name": "@bulksend/worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "dev": "tsx watch --env-file .env src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "clean": "rm -rf dist",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@bulksend/logger": "workspace:*",
+    "@bulksend/shared": "workspace:*",
+    "@prisma/client": "^5.22.0",
+    "@sendgrid/mail": "^8.1.4",
+    "kafkajs": "^2.2.4",
+    "ioredis": "^5.4.2",
+    "zod": "^3.24.1",
+    "uuid": "^11.0.3"
+  },
+  "prisma": {
+    "schema": "../api/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/uuid": "^10.0.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

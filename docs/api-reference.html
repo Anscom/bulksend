@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — REST API Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg: oklch(0.97 0.005 240);
+    --paper: oklch(0.995 0.003 240);
+    --ink: oklch(0.27 0.02 260);
+    --ink-soft: oklch(0.52 0.02 260);
+    --hair: oklch(0.89 0.01 260);
+    --app:   oklch(0.52 0.13 275);
+    --data:  oklch(0.50 0.10 200);
+    --ext:   oklch(0.54 0.13 320);
+    --track: oklch(0.52 0.13 250);
+    --ok:    oklch(0.54 0.12 155);
+    --warn:  oklch(0.60 0.13 70);
+    --bad:   oklch(0.55 0.17 25);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:var(--bg); color:var(--ink); font-family:"Space Grotesk",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ padding:40px 26px 80px; }
+  .wrap{ max-width:1300px; margin:0 auto; }
+  .mono{ font-family:"IBM Plex Mono",monospace; }
+
+  .eyebrow{ font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-soft); }
+  h1{ font-size:32px; font-weight:600; letter-spacing:-0.015em; margin:7px 0 6px; }
+  .lede{ font-size:16px; line-height:1.5; color:var(--ink-soft); max-width:840px; }
+
+  section{ margin-top:46px; }
+  .sec-head{ display:flex; align-items:center; gap:13px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--hair); }
+  .sec-num{ font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:#fff; background:var(--c,var(--app)); width:27px; height:27px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .sec-head h2{ font-size:21px; font-weight:600; letter-spacing:-0.01em; }
+  .sec-head .base{ margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink-soft); }
+  .sec-head .tagpub{ font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--ext); background:oklch(0.94 0.04 320); padding:3px 9px; border-radius:20px; }
+
+  /* conventions */
+  .conv{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:4px; }
+  .conv .c{ background:var(--paper); border:1px solid var(--hair); border-radius:12px; padding:14px 15px; }
+  .conv .c h4{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:7px; font-weight:600; }
+  .conv .c p{ font-size:13px; line-height:1.5; color:var(--ink); }
+  .conv .c code{ font-family:"IBM Plex Mono",monospace; font-size:12px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+
+  /* table */
+  table{ width:100%; border-collapse:collapse; background:var(--paper); border:1px solid var(--hair); border-radius:12px; overflow:hidden; table-layout:fixed; }
+  col.c-ep{ width:21%; } col.c-req{ width:25%; } col.c-res{ width:24%; } col.c-layer{ width:12%; } col.c-mw{ width:18%; }
+  thead th{ text-align:left; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; padding:11px 13px; background:oklch(0.95 0.005 250); border-bottom:1px solid var(--hair); }
+  tbody td{ padding:13px 13px; border-bottom:1px solid var(--hair); vertical-align:top; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:oklch(0.975 0.004 250); }
+
+  .ep{ display:flex; flex-direction:column; gap:6px; }
+  .m{ font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; color:#fff; width:fit-content; letter-spacing:.05em; }
+  .m.get{ background:var(--track); } .m.post{ background:var(--ok); } .m.patch{ background:var(--warn); } .m.del{ background:var(--bad); }
+  .path{ font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink); word-break:break-word; line-height:1.35; }
+
+  .req, .res{ font-family:"IBM Plex Mono",monospace; font-size:11px; line-height:1.55; color:var(--ink-soft); word-break:break-word; }
+  .req b, .res b{ color:var(--ink); font-weight:600; }
+  .req .muted, .res .muted{ color:var(--ink-soft); opacity:.8; }
+  .layer{ font-size:12px; line-height:1.45; color:var(--ink); }
+  .layer .svc{ font-weight:600; }
+  .layer .sub{ display:block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-soft); margin-top:3px; }
+
+  .mwlist{ display:flex; flex-wrap:wrap; gap:5px; }
+  .mw{ font-family:"IBM Plex Mono",monospace; font-size:10px; padding:2px 6px; border-radius:5px; background:oklch(0.93 0.01 260); color:var(--ink-soft); font-weight:500; white-space:nowrap; }
+  .mw.auth{ background:oklch(0.92 0.045 275); color:var(--app); }
+  .mw.pub{ background:oklch(0.93 0.045 320); color:var(--ext); }
+  .mw.rl{ background:oklch(0.94 0.05 70); color:oklch(0.45 0.12 60); }
+  .mw.sig{ background:oklch(0.91 0.045 200); color:var(--data); }
+  .mw.val{ background:oklch(0.93 0.01 260); color:var(--ink-soft); }
+
+  .tsub{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; margin:24px 0 9px; }
+  .callout{ display:flex; gap:13px; background:oklch(0.96 0.02 70); border:1px solid oklch(0.86 0.05 70); border-radius:12px; padding:13px 16px; margin-top:16px; }
+  .callout .ci{ font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--warn); flex:none; }
+  .callout p{ font-size:13px; line-height:1.55; color:var(--ink); }
+  .callout code{ font-family:"IBM Plex Mono",monospace; font-size:12px; background:oklch(0.93 0.04 70); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">BulkSend · HTTP Surface</div>
+    <h1>REST API Reference</h1>
+    <p class="lede">Endpoint map across the five services. All app endpoints sit behind <code class="mono">/api/v1</code>; tracking &amp; webhook endpoints are <strong>public</strong> and served on lean, separately-scaled routes. Tenant scope is derived from the access token — never from a path param.</p>
+  </header>
+
+  <!-- ============ CONVENTIONS ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-num" style="--c:var(--ink-soft)">§</span><h2>Conventions</h2></div>
+    <div class="conv">
+      <div class="c"><h4>Auth</h4><p>Short-lived JWT access token in <code>Authorization: Bearer</code>; rotating refresh token in an httpOnly cookie. The <code>workspaceId</code> claim scopes every request.</p></div>
+      <div class="c"><h4>Pagination</h4><p>Cursor or page params <code>?page</code> / <code>?limit</code> (max 100). List responses wrap as <code>{ data:[…], pagination:{ page, limit, total } }</code>.</p></div>
+      <div class="c"><h4>Errors</h4><p>Consistent envelope <code>{ error:{ code, message, details } }</code> with standard HTTP status. <code>422</code> for validation, <code>409</code> for conflicts.</p></div>
+      <div class="c"><h4>Idempotency</h4><p>State-changing sends accept an <code>Idempotency-Key</code> header; the server dedupes retries so a double-clicked “Send” fires once.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 1. AUTH ============ -->
+  <section style="--c:var(--app)">
+    <div class="sec-head"><span class="sec-num">1</span><h2>Auth service</h2><span class="base">/api/v1/auth</span></div>
+    <table>
+      <colgroup><col class="c-ep"/><col class="c-req"/><col class="c-res"/><col class="c-layer"/><col class="c-mw"/></colgroup>
+      <thead><tr><th>Endpoint</th><th>Request</th><th>Response</th><th>Layer</th><th>Middleware</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/auth/signup</span></div></td>
+          <td class="req"><b>body</b> { email, password, name, workspaceName }</td>
+          <td class="res"><b>201</b> { user, workspace, accessToken } <span class="muted">+ refresh cookie</span></td>
+          <td class="layer"><span class="svc">Auth</span><span class="sub">controller → user/workspace svc</span></td>
+          <td><div class="mwlist"><span class="mw val">validate</span><span class="mw rl">rateLimit:ip</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/auth/login</span></div></td>
+          <td class="req"><b>body</b> { email, password }</td>
+          <td class="res"><b>200</b> { user, accessToken } <span class="muted">+ refresh cookie</span></td>
+          <td class="layer"><span class="svc">Auth</span><span class="sub">credential check</span></td>
+          <td><div class="mwlist"><span class="mw val">validate</span><span class="mw rl">rateLimit:brute</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/auth/refresh</span></div></td>
+          <td class="req"><b>cookie</b> refreshToken</td>
+          <td class="res"><b>200</b> { accessToken } <span class="muted">+ rotated refresh cookie</span></td>
+          <td class="layer"><span class="svc">Auth</span><span class="sub">token rotation</span></td>
+          <td><div class="mwlist"><span class="mw rl">rateLimit:ip</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/auth/logout</span></div></td>
+          <td class="req"><b>cookie</b> refreshToken</td>
+          <td class="res"><b>204</b> <span class="muted">— token revoked, cookie cleared</span></td>
+          <td class="layer"><span class="svc">Auth</span><span class="sub">revoke (Redis denylist)</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/auth/me</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>200</b> { user, workspace, role }</td>
+          <td class="layer"><span class="svc">Auth</span><span class="sub">session read</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 2. CONTACTS ============ -->
+  <section style="--c:var(--ok)">
+    <div class="sec-head"><span class="sec-num">2</span><h2>Contacts service</h2><span class="base">/api/v1 · auth · tenant on all</span></div>
+
+    <div class="tsub">Contacts · CRUD + CSV import</div>
+    <table>
+      <colgroup><col class="c-ep"/><col class="c-req"/><col class="c-res"/><col class="c-layer"/><col class="c-mw"/></colgroup>
+      <thead><tr><th>Endpoint</th><th>Request</th><th>Response</th><th>Layer</th><th>Middleware</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/contacts</span></div></td>
+          <td class="req"><b>query</b> page, limit, search, status, tagId, segmentId, sort</td>
+          <td class="res"><b>200</b> { data: Contact[], pagination }</td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">list / filter</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/contacts</span></div></td>
+          <td class="req"><b>body</b> { email, firstName, lastName, attributes, tagIds }</td>
+          <td class="res"><b>201</b> Contact <span class="muted">| 409 duplicate email</span></td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">upsert</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/contacts/:id</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>200</b> Contact { …, tags[] }</td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">read</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m patch">PATCH</span><span class="path">/contacts/:id</span></div></td>
+          <td class="req"><b>body</b> partial { firstName?, status?, attributes? }</td>
+          <td class="res"><b>200</b> Contact</td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">update</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m del">DELETE</span><span class="path">/contacts/:id</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>204</b> <span class="muted">— soft delete (deleted_at)</span></td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">soft delete</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/contacts/import</span></div></td>
+          <td class="req"><b>multipart</b> file (csv), columnMapping, tagIds</td>
+          <td class="res"><b>202</b> { importId, status: "processing" }</td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">→ async import job</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">multipart≤25MB</span><span class="mw rl">rateLimit:heavy</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/contacts/imports/:importId</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>200</b> { status, processed, total, failed, errors[] }</td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">import progress</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/contacts/:id/tags</span></div></td>
+          <td class="req"><b>body</b> { tagIds: string[] }</td>
+          <td class="res"><b>200</b> { tags: Tag[] }</td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">attach tags</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m del">DELETE</span><span class="path">/contacts/:id/tags/:tagId</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>204</b></td>
+          <td class="layer"><span class="svc">Contacts</span><span class="sub">detach tag</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tsub">Tags</div>
+    <table>
+      <colgroup><col class="c-ep"/><col class="c-req"/><col class="c-res"/><col class="c-layer"/><col class="c-mw"/></colgroup>
+      <thead><tr><th>Endpoint</th><th>Request</th><th>Response</th><th>Layer</th><th>Middleware</th></tr></thead>
+      <tbody>
+        <tr><td><div class="ep"><span class="m get">GET</span><span class="path">/tags</span></div></td><td class="req"><span class="muted">—</span></td><td class="res"><b>200</b> Tag[]</td><td class="layer"><span class="svc">Contacts</span><span class="sub">list</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td></tr>
+        <tr><td><div class="ep"><span class="m post">POST</span><span class="path">/tags</span></div></td><td class="req"><b>body</b> { name, color }</td><td class="res"><b>201</b> Tag <span class="muted">| 409 dup name</span></td><td class="layer"><span class="svc">Contacts</span><span class="sub">create</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td></tr>
+        <tr><td><div class="ep"><span class="m patch">PATCH</span><span class="path">/tags/:id</span></div></td><td class="req"><b>body</b> { name?, color? }</td><td class="res"><b>200</b> Tag</td><td class="layer"><span class="svc">Contacts</span><span class="sub">update</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td></tr>
+        <tr><td><div class="ep"><span class="m del">DELETE</span><span class="path">/tags/:id</span></div></td><td class="req"><span class="muted">—</span></td><td class="res"><b>204</b></td><td class="layer"><span class="svc">Contacts</span><span class="sub">delete (cascades joins)</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="tsub">Segments</div>
+    <table>
+      <colgroup><col class="c-ep"/><col class="c-req"/><col class="c-res"/><col class="c-layer"/><col class="c-mw"/></colgroup>
+      <thead><tr><th>Endpoint</th><th>Request</th><th>Response</th><th>Layer</th><th>Middleware</th></tr></thead>
+      <tbody>
+        <tr><td><div class="ep"><span class="m get">GET</span><span class="path">/segments</span></div></td><td class="req"><span class="muted">—</span></td><td class="res"><b>200</b> Segment[]</td><td class="layer"><span class="svc">Contacts</span><span class="sub">list</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td></tr>
+        <tr><td><div class="ep"><span class="m post">POST</span><span class="path">/segments</span></div></td><td class="req"><b>body</b> { name, description, type, filter }</td><td class="res"><b>201</b> Segment</td><td class="layer"><span class="svc">Contacts</span><span class="sub">create</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td></tr>
+        <tr><td><div class="ep"><span class="m patch">PATCH</span><span class="path">/segments/:id</span></div></td><td class="req"><b>body</b> partial { name?, filter? }</td><td class="res"><b>200</b> Segment</td><td class="layer"><span class="svc">Contacts</span><span class="sub">update</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td></tr>
+        <tr><td><div class="ep"><span class="m del">DELETE</span><span class="path">/segments/:id</span></div></td><td class="req"><span class="muted">—</span></td><td class="res"><b>204</b></td><td class="layer"><span class="svc">Contacts</span><span class="sub">delete</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td></tr>
+        <tr><td><div class="ep"><span class="m get">GET</span><span class="path">/segments/:id/preview</span></div></td><td class="req"><b>query</b> limit</td><td class="res"><b>200</b> { count, sample: Contact[] } <span class="muted">— evaluates filter live</span></td><td class="layer"><span class="svc">Contacts</span><span class="sub">dry-run query</span></td><td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 3. CAMPAIGNS ============ -->
+  <section style="--c:var(--warn)">
+    <div class="sec-head"><span class="sec-num">3</span><h2>Campaigns service</h2><span class="base">/api/v1/campaigns · auth · tenant</span></div>
+    <table>
+      <colgroup><col class="c-ep"/><col class="c-req"/><col class="c-res"/><col class="c-layer"/><col class="c-mw"/></colgroup>
+      <thead><tr><th>Endpoint</th><th>Request</th><th>Response</th><th>Layer</th><th>Middleware</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/campaigns</span></div></td>
+          <td class="req"><b>query</b> page, limit, status</td>
+          <td class="res"><b>200</b> { data: Campaign[], pagination }</td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">list</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/campaigns</span></div></td>
+          <td class="req"><b>body</b> { name, subject, fromName, fromEmail, replyTo, bodyHtml, bodyText, segmentId }</td>
+          <td class="res"><b>201</b> Campaign <span class="muted">(status: draft)</span></td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">create draft</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m patch">PATCH</span><span class="path">/campaigns/:id</span></div></td>
+          <td class="req"><b>body</b> partial <span class="muted">(draft / scheduled only)</span></td>
+          <td class="res"><b>200</b> Campaign <span class="muted">| 409 if sending/sent</span></td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">edit</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m del">DELETE</span><span class="path">/campaigns/:id</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>204</b> <span class="muted">(draft only) | 409</span></td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">delete draft</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/campaigns/:id/schedule</span></div></td>
+          <td class="req"><b>body</b> { scheduledAt }</td>
+          <td class="res"><b>200</b> Campaign <span class="muted">(status: scheduled)</span></td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">set schedule</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/campaigns/:id/send</span></div></td>
+          <td class="req"><b>header</b> Idempotency-Key <br/><span class="muted">trigger now</span></td>
+          <td class="res"><b>202</b> { campaignId, status: "sending", dispatchId }</td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">→ produce campaign.dispatch (Kafka)</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">idempotency</span><span class="mw rl">rateLimit:sendQuota</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/campaigns/:id/cancel</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>200</b> Campaign <span class="muted">(cancelled / paused)</span></td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">halt dispatch</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/campaigns/:id/test</span></div></td>
+          <td class="req"><b>body</b> { to: string[] }</td>
+          <td class="res"><b>202</b> { status: "queued" }</td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">send preview</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw val">validate</span><span class="mw rl">rateLimit</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/campaigns/:id/stats</span></div></td>
+          <td class="req"><span class="muted">—</span></td>
+          <td class="res"><b>200</b> { recipients, sent, delivered, opens, uniqueOpens, clicks, bounces, unsubscribes, rates }</td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">rollups (Redis + Postgres)</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span><span class="mw sig">cache:redis</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/campaigns/:id/events</span></div></td>
+          <td class="req"><b>query</b> type, page, limit</td>
+          <td class="res"><b>200</b> { data: Event[], pagination }</td>
+          <td class="layer"><span class="svc">Campaigns</span><span class="sub">event feed</span></td>
+          <td><div class="mwlist"><span class="mw auth">auth·tenant</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 4. TRACKING ============ -->
+  <section style="--c:var(--track)">
+    <div class="sec-head"><span class="sec-num">4</span><h2>Tracking service</h2><span class="tagpub">Public</span><span class="base" style="margin-left:12px">recipient-facing · edge-scaled</span></div>
+    <table>
+      <colgroup><col class="c-ep"/><col class="c-req"/><col class="c-res"/><col class="c-layer"/><col class="c-mw"/></colgroup>
+      <thead><tr><th>Endpoint</th><th>Request</th><th>Response</th><th>Layer</th><th>Middleware</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/t/o/:token.gif</span></div></td>
+          <td class="req"><b>path</b> token = signed{ sendId } <span class="muted">(embedded in email)</span></td>
+          <td class="res"><b>200</b> 1×1 image/gif <span class="muted">Cache-Control: no-store</span></td>
+          <td class="layer"><span class="svc">Tracking</span><span class="sub">→ produce 'opened' event</span></td>
+          <td><div class="mwlist"><span class="mw sig">signed-token</span><span class="mw rl">rateLimit:edge</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/t/c/:token</span></div></td>
+          <td class="req"><b>path</b> token = signed{ sendId, url }</td>
+          <td class="res"><b>302</b> Location: original URL</td>
+          <td class="layer"><span class="svc">Tracking</span><span class="sub">→ produce 'clicked' event</span></td>
+          <td><div class="mwlist"><span class="mw sig">signed-token</span><span class="mw rl">rateLimit:edge</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m get">GET</span><span class="path">/u/:token</span></div></td>
+          <td class="req"><b>path</b> token = signed{ sendId, contactId }</td>
+          <td class="res"><b>200</b> text/html — unsubscribe landing page</td>
+          <td class="layer"><span class="svc">Tracking</span><span class="sub">render confirm page</span></td>
+          <td><div class="mwlist"><span class="mw sig">signed-token</span></div></td>
+        </tr>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/u/:token</span></div></td>
+          <td class="req"><b>body</b> { reason? } <span class="muted">— also RFC 8058 one-click</span></td>
+          <td class="res"><b>200</b> { status: "unsubscribed" }</td>
+          <td class="layer"><span class="svc">Tracking</span><span class="sub">suppress contact → 'unsubscribed' event</span></td>
+          <td><div class="mwlist"><span class="mw sig">signed-token</span><span class="mw rl">rateLimit</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="callout"><span class="ci">NOTE</span><p>No JWT here — authenticity comes from <strong>HMAC-signed tokens</strong> minted at send time. The open pixel <strong>fails open</strong> (always returns the gif even on a bad/expired token) so a broken link never shows a broken image; event production is fire-and-forget to <code>email.events</code>.</p></div>
+  </section>
+
+  <!-- ============ 5. WEBHOOK ============ -->
+  <section style="--c:var(--ext)">
+    <div class="sec-head"><span class="sec-num">5</span><h2>Webhook service</h2><span class="tagpub">Public</span><span class="base" style="margin-left:12px">provider-facing · SendGrid</span></div>
+    <table>
+      <colgroup><col class="c-ep"/><col class="c-req"/><col class="c-res"/><col class="c-layer"/><col class="c-mw"/></colgroup>
+      <thead><tr><th>Endpoint</th><th>Request</th><th>Response</th><th>Layer</th><th>Middleware</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="ep"><span class="m post">POST</span><span class="path">/webhooks/sendgrid</span></div></td>
+          <td class="req"><b>headers</b> X-Twilio-Email-Event-Webhook-Signature / -Timestamp <br/><b>body</b> Event[] { sg_event_id, sg_message_id, event, email, timestamp, reason?, url? }</td>
+          <td class="res"><b>200</b> <span class="muted">— ack immediately (empty)</span></td>
+          <td class="layer"><span class="svc">Webhook</span><span class="sub">verify → normalize → produce email.events</span></td>
+          <td><div class="mwlist"><span class="mw val">rawBody</span><span class="mw sig">verifyEd25519</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="callout"><span class="ci">NOTE</span><p><strong>Verify before trust:</strong> validate SendGrid's Ed25519 signature against the raw body, then <strong>ack 2xx fast</strong> and hand the batch to Kafka — never block the response on DB writes. Each <code>sg_event_id</code> dedupes downstream (see <code>events.provider_event_id</code>), so SendGrid's at-least-once retries are safe.</p></div>
+  </section>
+
+</div>
+</body>
+</html>

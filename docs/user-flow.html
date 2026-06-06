@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — User Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg: oklch(0.975 0.004 265);
+    --paper: #fff;
+    --ink: oklch(0.23 0.02 265);
+    --ink-2: oklch(0.34 0.02 265);
+    --slate: oklch(0.52 0.02 265);
+    --slate-3: oklch(0.62 0.015 265);
+    --faint: oklch(0.72 0.012 265);
+    --line: oklch(0.90 0.008 265);
+    --line-2: oklch(0.95 0.005 265);
+    --indigo: oklch(0.52 0.16 270);
+    --indigo-600: oklch(0.46 0.17 270);
+    --indigo-tint: oklch(0.96 0.025 270);
+    --coral: oklch(0.65 0.18 36);
+    --coral-tint: oklch(0.95 0.04 45);
+    --green: oklch(0.58 0.13 158);
+    --green-tint: oklch(0.95 0.04 158);
+    --amber: oklch(0.70 0.14 70);
+    --display:"Space Grotesk",system-ui,sans-serif;
+    --sans:"IBM Plex Sans",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:var(--sans); background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; padding:40px 26px 70px; line-height:1.5; }
+  .wrap{ max-width:1180px; margin:0 auto; }
+  .mono{ font-family:var(--mono); }
+
+  .eyebrow{ font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--indigo); display:inline-flex; align-items:center; gap:9px; }
+  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--indigo); opacity:.5; }
+  h1{ font-family:var(--display); font-size:clamp(26px,4vw,34px); font-weight:600; letter-spacing:-0.02em; margin:8px 0 6px; }
+  .lede{ font-size:15.5px; color:var(--slate); max-width:70ch; }
+
+  /* legend */
+  .legend{ display:flex; flex-wrap:wrap; gap:10px 20px; margin-top:22px; padding:14px 18px; background:var(--paper); border:1px solid var(--line); border-radius:12px; }
+  .lg{ display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--ink-2); font-weight:500; }
+  .lg .sw{ width:22px; height:16px; border-radius:5px; flex:none; border:1.5px solid; }
+  .lg .sw.screen{ background:var(--paper); border-color:var(--indigo); box-shadow:inset 3px 0 0 var(--indigo); }
+  .lg .sw.action{ background:var(--coral-tint); border-color:var(--coral); }
+  .lg .sw.system{ background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 3px,var(--line-2) 3px,var(--line-2) 6px); border-style:dashed; border-color:var(--slate-3); }
+  .lg .sw.entry{ background:var(--ink); border-color:var(--ink); }
+
+  /* phase */
+  .phase{ margin-top:34px; }
+  .phase-head{ display:flex; align-items:center; gap:13px; margin-bottom:16px; }
+  .pnum{ width:30px; height:30px; border-radius:9px; background:var(--indigo); color:#fff; font-family:var(--mono); font-weight:600; font-size:13px; display:grid; place-items:center; flex:none; }
+  .phase-head h2{ font-family:var(--display); font-size:17px; font-weight:600; letter-spacing:-0.01em; }
+  .phase-head .ph-sub{ font-size:13px; color:var(--slate-3); margin-left:auto; text-align:right; }
+
+  /* flow row */
+  .flow{ display:flex; align-items:stretch; flex-wrap:wrap; gap:0; }
+  .node{ position:relative; background:var(--paper); border:1px solid var(--line); border-radius:13px; padding:15px 16px; width:200px; flex:none; box-shadow:0 1px 2px oklch(0.4 0.03 265/.05), 0 6px 18px oklch(0.4 0.03 265/.04); display:flex; flex-direction:column; }
+  .node::before{ content:""; position:absolute; left:0; top:13px; bottom:13px; width:3.5px; border-radius:0 4px 4px 0; background:var(--indigo); }
+  .node .ntag{ font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--indigo); font-weight:600; display:flex; align-items:center; gap:6px; }
+  .node .nname{ font-family:var(--display); font-weight:600; font-size:15px; letter-spacing:-0.01em; margin-top:7px; }
+  .node .ndesc{ font-size:12.5px; color:var(--slate); line-height:1.45; margin-top:5px; }
+  .node .nicon{ width:24px; height:24px; border-radius:7px; background:var(--indigo-tint); color:var(--indigo-600); display:grid; place-items:center; margin-left:auto; }
+  .node .ntop{ display:flex; align-items:center; gap:8px; }
+
+  .node.action::before{ background:var(--coral); }
+  .node.action .ntag{ color:var(--coral); }
+  .node.action .nicon{ background:var(--coral-tint); color:var(--coral); }
+  .node.entry::before{ background:var(--ink); }
+  .node.entry .ntag{ color:var(--ink-2); }
+  .node.entry .nicon{ background:oklch(0.93 0.01 265); color:var(--ink); }
+  .node.system{ border-style:dashed; border-color:var(--slate-3); background:oklch(0.985 0.003 265); box-shadow:none; }
+  .node.system::before{ background:var(--slate-3); }
+  .node.system .ntag{ color:var(--slate); }
+  .node.system .nicon{ background:oklch(0.93 0.01 265); color:var(--slate); }
+  .node.wide{ width:236px; }
+
+  .arrow{ display:flex; align-items:center; justify-content:center; min-width:46px; flex:none; color:var(--faint); align-self:center; }
+  .arrow svg{ width:26px; height:26px; }
+  .arrow.labeled{ flex-direction:column; gap:3px; }
+  .arrow .alabel{ font-family:var(--mono); font-size:9.5px; color:var(--slate-3); white-space:nowrap; }
+
+  .substeps{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .substeps .ss{ font-family:var(--mono); font-size:10px; color:var(--slate); background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:3px 9px; white-space:nowrap; flex:none; }
+
+  /* loop callout */
+  .loop{ display:flex; align-items:center; gap:13px; margin-top:14px; padding:13px 18px; background:var(--indigo-tint); border:1px solid oklch(0.9 0.03 270); border-radius:12px; }
+  .loop svg{ color:var(--indigo); flex:none; }
+  .loop .lt{ font-size:13.5px; color:var(--ink-2); }
+  .loop .lt b{ font-weight:600; color:var(--ink); }
+
+  .tracking{ margin-top:14px; padding:16px 18px; background:var(--paper); border:1px solid var(--line); border-radius:13px; }
+  .tracking .tt{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--coral); font-weight:600; margin-bottom:12px; }
+  .tracking .tflow{ display:flex; align-items:center; flex-wrap:wrap; gap:0; }
+  .tchip{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--ink-2); background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:7px 14px; }
+  .tchip .ti{ width:18px; height:18px; border-radius:5px; display:grid; place-items:center; color:#fff; }
+
+  .footnote{ margin-top:30px; font-family:var(--mono); font-size:12px; color:var(--slate-3); text-align:center; }
+
+  @media (max-width:760px){
+    .flow{ flex-direction:column; align-items:stretch; gap:0; }
+    .node, .node.wide{ width:100%; }
+    .arrow{ min-width:0; height:34px; width:100%; }
+    .arrow svg{ transform:rotate(90deg); }
+    .arrow.labeled{ flex-direction:row; gap:8px; }
+    .phase-head .ph-sub{ display:none; }
+    .tflow{ flex-direction:column; align-items:stretch; }
+    .tflow .arrow{ height:26px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">BulkSend · Product</div>
+    <h1>How a user moves through the app</h1>
+    <p class="lede">The end-to-end journey inside the workspace — from first signup to a sent, tracked, and analyzed campaign. Each card is a real screen in the app; the loop at the end is what keeps teams coming back.</p>
+    <div class="legend">
+      <span class="lg"><span class="sw entry"></span> Entry point</span>
+      <span class="lg"><span class="sw screen"></span> App screen</span>
+      <span class="lg"><span class="sw action"></span> Key action</span>
+      <span class="lg"><span class="sw system"></span> System process (async)</span>
+    </div>
+  </header>
+
+  <!-- PHASE 1 -->
+  <section class="phase">
+    <div class="phase-head"><span class="pnum">1</span><h2>Get started</h2><span class="ph-sub">First session · one-time setup</span></div>
+    <div class="flow">
+      <div class="node entry">
+        <div class="ntop"><span class="ntag">Entry</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span></div>
+        <div class="nname">Sign up</div>
+        <div class="ndesc">Email + password, or SSO. From the marketing site's “Start free”.</div>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node">
+        <div class="ntop"><span class="ntag">Screen</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg></span></div>
+        <div class="nname">Create workspace</div>
+        <div class="ndesc">Name the workspace, set the sending domain, invite teammates.</div>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node">
+        <div class="ntop"><span class="ntag">Screen</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span></div>
+        <div class="nname">Dashboard</div>
+        <div class="ndesc">The home base — KPIs, recent campaigns, and live activity.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 2 -->
+  <section class="phase">
+    <div class="phase-head"><span class="pnum">2</span><h2>Build the audience</h2><span class="ph-sub">Contacts &amp; Segments</span></div>
+    <div class="flow">
+      <div class="node">
+        <div class="ntop"><span class="ntag">Screen</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span></div>
+        <div class="nname">Contacts</div>
+        <div class="ndesc">The audience list, searchable and filterable by status &amp; tag.</div>
+      </div>
+      <div class="arrow labeled"><span class="alabel">import</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node action">
+        <div class="ntop"><span class="ntag">Action</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></svg></span></div>
+        <div class="nname">Import CSV</div>
+        <div class="ndesc">Upload, map columns to fields, and tag — processed in the background.</div>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node">
+        <div class="ntop"><span class="ntag">Screen</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg></span></div>
+        <div class="nname">Build a segment</div>
+        <div class="ndesc">Filter contacts into a saved audience with a live recipient count.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 3 -->
+  <section class="phase">
+    <div class="phase-head"><span class="pnum">3</span><h2>Create the campaign</h2><span class="ph-sub">New campaign composer · 4 steps</span></div>
+    <div class="flow">
+      <div class="node action wide">
+        <div class="ntop"><span class="ntag">Action</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></div>
+        <div class="nname">New campaign</div>
+        <div class="ndesc">Launch the composer from anywhere in the app.</div>
+        <div class="substeps"><span class="ss">1 Content</span><span class="ss">2 Audience</span><span class="ss">3 Schedule</span><span class="ss">4 Review</span></div>
+      </div>
+      <div class="arrow labeled"><span class="alabel">compose</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node">
+        <div class="ntop"><span class="ntag">Step 1–2</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg></span></div>
+        <div class="nname">Content + audience</div>
+        <div class="ndesc">Write subject &amp; body with a live preview, then pick the segment.</div>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node">
+        <div class="ntop"><span class="ntag">Step 3–4</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span></div>
+        <div class="nname">Schedule + review</div>
+        <div class="ndesc">Send now or schedule; confirm everything on one review screen.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 4 -->
+  <section class="phase">
+    <div class="phase-head"><span class="pnum">4</span><h2>Send &amp; deliver</h2><span class="ph-sub">Async engine · the user just waits</span></div>
+    <div class="flow">
+      <div class="node action">
+        <div class="ntop"><span class="ntag">Action</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></span></div>
+        <div class="nname">Send campaign</div>
+        <div class="ndesc">One click. Returns instantly — work happens in the background.</div>
+      </div>
+      <div class="arrow labeled"><span class="alabel">queue</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node system wide">
+        <div class="ntop"><span class="ntag">System</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg></span></div>
+        <div class="nname">Fan out · throttle · deliver</div>
+        <div class="ndesc">Per-contact jobs queue, rate-limit checks pass, suppressed contacts skip, SendGrid delivers.</div>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="node">
+        <div class="ntop"><span class="ntag">Screen</span><span class="nicon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span></div>
+        <div class="nname">Campaign (sending)</div>
+        <div class="ndesc">Live progress bar and counters tick up in real time.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 5 -->
+  <section class="phase">
+    <div class="phase-head"><span class="pnum">5</span><h2>Track &amp; optimize</h2><span class="ph-sub">The loop that retains</span></div>
+    <div class="tracking">
+      <div class="tt">Events flow back in real time</div>
+      <div class="tflow">
+        <span class="tchip"><span class="ti" style="background:var(--green)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></span> Opened</span>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <span class="tchip"><span class="ti" style="background:var(--coral)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 9 2-5 5-2z"/></svg></span> Clicked</span>
+        <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <span class="tchip"><span class="ti" style="background:var(--slate)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></span> Bounce / unsub</span>
+        <div class="arrow labeled"><span class="alabel">aggregate</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <span class="tchip" style="border-color:var(--indigo);color:var(--indigo-600);background:var(--indigo-tint);font-weight:600"><span class="ti" style="background:var(--indigo)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg></span> Campaign analytics</span>
+      </div>
+    </div>
+    <div class="loop">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 019-9 9 9 0 016.7 3L21 8M21 3v5h-5M21 12a9 9 0 01-9 9 9 9 0 01-6.7-3L3 16M3 21v-5h5"/></svg>
+      <div class="lt"><b>The loop:</b> insights from analytics inform the next segment and campaign — users return to <b>Phase 3</b> and send again. Open rates, clicks, and suppression keep the list healthy over time.</div>
+    </div>
+  </section>
+
+  <p class="footnote">Every screen referenced here is built in BulkSend App.html · entry begins at the marketing site (BulkSend Website.html)</p>
+</div>
+</body>
+</html>

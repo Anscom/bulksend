@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — Redis Key Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg: oklch(0.97 0.005 240);
+    --paper: oklch(0.995 0.003 240);
+    --ink: oklch(0.27 0.02 260);
+    --ink-soft: oklch(0.52 0.02 260);
+    --hair: oklch(0.89 0.01 260);
+    --app:   oklch(0.52 0.13 275);
+    --data:  oklch(0.50 0.10 200);
+    --ext:   oklch(0.54 0.13 320);
+    --warn:  oklch(0.61 0.14 70);
+    --ok:    oklch(0.54 0.12 155);
+    --bad:   oklch(0.55 0.17 25);
+    --code-bg: oklch(0.23 0.02 265);
+    --code-fg: oklch(0.91 0.01 250);
+    --code-dim: oklch(0.60 0.02 255);
+    --code-cmd: oklch(0.78 0.10 195);
+    --code-str: oklch(0.80 0.11 145);
+    --code-num: oklch(0.80 0.11 290);
+    --code-key: oklch(0.74 0.13 50);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:var(--bg); color:var(--ink); font-family:"Space Grotesk",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ padding:40px 26px 80px; }
+  .wrap{ max-width:1180px; margin:0 auto; }
+  .mono{ font-family:"IBM Plex Mono",monospace; }
+
+  .eyebrow{ font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-soft); }
+  h1{ font-size:32px; font-weight:600; letter-spacing:-0.015em; margin:7px 0 6px; }
+  .lede{ font-size:16px; line-height:1.5; color:var(--ink-soft); max-width:850px; }
+
+  section{ margin-top:48px; }
+  .sec-head{ display:flex; align-items:center; gap:13px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--hair); }
+  .sec-num{ font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:#fff; background:var(--c,var(--app)); width:27px; height:27px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .sec-head h2{ font-size:21px; font-weight:600; letter-spacing:-0.01em; }
+  .sec-head .hint{ margin-left:auto; font-size:13px; color:var(--ink-soft); }
+
+  p.note{ font-size:14.5px; line-height:1.6; color:var(--ink); max-width:900px; }
+  p.note code, li code{ font-family:"IBM Plex Mono",monospace; font-size:12.5px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+
+  /* key definition strip */
+  .kdef{ display:grid; grid-template-columns:1.5fr 0.7fr 1fr; gap:13px; margin:4px 0 16px; }
+  .kdef .kb{ background:var(--paper); border:1px solid var(--hair); border-radius:11px; padding:12px 14px; }
+  .kdef .kb h4{ font-family:"IBM Plex Mono",monospace; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:7px; font-weight:600; }
+  .kdef .kb .v{ font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink); line-height:1.4; word-break:break-word; }
+
+  .tb{ display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; padding:2px 9px; border-radius:20px; color:#fff; }
+  .t-str{ background:var(--ink-soft); } .t-hash{ background:var(--app); } .t-set{ background:var(--data); } .t-zset{ background:var(--ext); } .t-hll{ background:var(--warn); }
+
+  /* code */
+  .code{ background:var(--code-bg); border-radius:13px; padding:15px 19px; margin:6px 0 14px; overflow-x:auto; box-shadow:0 10px 30px oklch(0.3 0.03 265/.18); }
+  .code .cap{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--code-dim); margin-bottom:10px; }
+  pre{ font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.65; color:var(--code-fg); white-space:pre; }
+  .p{ color:var(--code-num); } .cmd{ color:var(--code-cmd); font-weight:600; } .s{ color:var(--code-str); } .c{ color:var(--code-dim); font-style:italic; } .n{ color:var(--code-num); } .kw{ color:var(--code-key); }
+
+  /* edge list */
+  .edges{ margin:2px 0 0; }
+  .edges .et{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; margin-bottom:10px; }
+  ul.tight{ list-style:none; display:flex; flex-direction:column; gap:9px; }
+  ul.tight li{ position:relative; padding-left:20px; font-size:13.5px; line-height:1.5; color:var(--ink); }
+  ul.tight li::before{ content:"⚠"; position:absolute; left:0; top:0; color:var(--warn); font-size:12px; }
+  ul.tight li b{ font-weight:600; }
+  ul.tight li code{ font-family:"IBM Plex Mono",monospace; font-size:12px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+
+  /* namespace table */
+  table{ width:100%; border-collapse:collapse; background:var(--paper); border:1px solid var(--hair); border-radius:12px; overflow:hidden; font-size:13px; }
+  thead th{ text-align:left; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; padding:11px 14px; background:oklch(0.95 0.005 250); border-bottom:1px solid var(--hair); }
+  tbody td{ padding:11px 14px; border-bottom:1px solid var(--hair); vertical-align:middle; line-height:1.4; }
+  tbody tr:last-child td{ border-bottom:none; }
+  td .kp{ font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12.5px; color:var(--ink); }
+  td.ttl{ font-family:"IBM Plex Mono",monospace; color:var(--ink-soft); font-size:12px; }
+
+  .callout{ display:flex; gap:13px; background:oklch(0.96 0.025 200); border:1px solid oklch(0.85 0.05 200); border-radius:12px; padding:13px 16px; margin-top:14px; }
+  .callout .ci{ font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--data); flex:none; }
+  .callout p{ font-size:13px; line-height:1.55; color:var(--ink); }
+  .callout code{ font-family:"IBM Plex Mono",monospace; font-size:12px; background:oklch(1 0 0/.55); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">BulkSend · Cache &amp; Coordination Layer</div>
+    <h1>Redis Key Design</h1>
+    <p class="lede">Naming, types, and TTLs for the four hot-path Redis workloads. Every key is <strong>tenant-prefixed</strong>, every counter mutates through an <strong>atomic command</strong> (never read-modify-write in app code), and Postgres stays the source of truth — Redis is the fast lane that can always be rebuilt.</p>
+  </header>
+
+  <!-- namespace map -->
+  <section>
+    <div class="sec-head"><span class="sec-num" style="--c:var(--ink-soft)">§</span><h2>Key namespace map</h2><span class="hint"><code class="mono" style="background:none">{ }</code> = interpolated id</span></div>
+    <table>
+      <thead><tr><th style="width:34%">Key pattern</th><th style="width:11%">Type</th><th style="width:34%">Purpose</th><th style="width:21%">TTL</th></tr></thead>
+      <tbody>
+        <tr><td><span class="kp">rl:{ws}:{YYYYMMDDHH}</span></td><td><span class="tb t-str">string</span></td><td>Hourly send quota (free 100 / paid 2000)</td><td class="ttl">2h (auto-expire)</td></tr>
+        <tr><td><span class="kp">tb:{ws}</span></td><td><span class="tb t-hash">hash</span></td><td>Per-minute token bucket — provider smoothing</td><td class="ttl">~2m idle</td></tr>
+        <tr><td><span class="kp">supp:{ws}</span></td><td><span class="tb t-set">set</span></td><td>Unsubscribe / hard-bounce suppression</td><td class="ttl">none (+ loaded flag)</td></tr>
+        <tr><td><span class="kp">campaign:{id}:remaining</span></td><td><span class="tb t-str">string</span></td><td>Completion counter (drives “sent”)</td><td class="ttl">until done · 48h cap</td></tr>
+        <tr><td><span class="kp">campaign:{id}:stats</span></td><td><span class="tb t-hash">hash</span></td><td>Live per-status counts for the dashboard</td><td class="ttl">48h</td></tr>
+        <tr><td><span class="kp">campaign:{id}:opens · :clicks</span></td><td><span class="tb t-hll">HLL</span></td><td>Unique opens / clicks (HyperLogLog)</td><td class="ttl">48h</td></tr>
+        <tr><td><span class="kp">sess:{sid}</span></td><td><span class="tb t-hash">hash</span></td><td>Auth session / refresh record</td><td class="ttl">30d sliding</td></tr>
+        <tr><td><span class="kp">user:{uid}:sessions</span></td><td><span class="tb t-set">set</span></td><td>Session index — “log out everywhere”</td><td class="ttl">none (lazy clean)</td></tr>
+        <tr><td><span class="kp">auth:bl:{jti}</span></td><td><span class="tb t-str">string</span></td><td>Access-token denylist (instant revoke)</td><td class="ttl">= token life (~15m)</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><span class="ci">DB</span><p>Suppression, sessions, and rate-limit policy all originate in Postgres; the Redis keys are caches/coordination state. Anything here can be lost and rebuilt — designs below say <strong>how</strong> each one recovers so a cold cache or eviction never causes a wrong send or a stuck campaign.</p></div>
+  </section>
+
+  <!-- ============ 1. RATE LIMIT ============ -->
+  <section style="--c:var(--warn)">
+    <div class="sec-head"><span class="sec-num">1</span><h2>Rate limiting — hourly quota</h2><span class="hint">fixed window · atomic reserve</span></div>
+
+    <div class="kdef">
+      <div class="kb"><h4>Key convention</h4><div class="v">rl:{workspaceId}:{YYYYMMDDHH}<br/><span style="color:var(--ink-soft)">e.g. rl:ws_8fa…:2026060415</span></div></div>
+      <div class="kb"><h4>Type</h4><div class="v"><span class="tb t-str">string</span> <span style="color:var(--ink-soft)">int counter, INCR</span></div></div>
+      <div class="kb"><h4>TTL</h4><div class="v">7200s, set on creation. Window key self-expires — no cleanup job.</div></div>
+    </div>
+
+    <p class="note">One counter per workspace per clock-hour. The limit (100 / 2000) is resolved live from a tiny cached policy key so a plan upgrade takes effect immediately. The quota is <strong>reserved before</strong> the send and refunded if the send is skipped, so concurrent workers can't oversend.</p>
+
+    <div class="code">
+      <div class="cap">reserve → send → refund-on-skip</div>
+<pre><span class="c"># resolve the limit (cached from Postgres, short TTL, busted on plan change)</span>
+<span class="cmd">GET</span> ws:{ws}:limit            <span class="c"># → 100 | 2000</span>
+
+<span class="c"># atomically reserve one unit of THIS hour's quota</span>
+<span class="cmd">INCR</span>   rl:{ws}:2026060415     <span class="c"># → n  (atomic; safe across all workers)</span>
+<span class="cmd">EXPIRE</span> rl:{ws}:2026060415 <span class="n">7200</span> <span class="kw">NX</span>   <span class="c"># set TTL only on first write</span>
+
+<span class="c"># n &gt; limit → over quota: requeue the job to the next hour window</span>
+<span class="c"># n ≤ limit → proceed to send</span>
+
+<span class="c"># if the send is skipped (suppressed) or permanently fails pre-provider,</span>
+<span class="c"># hand the unit back so it isn't wasted:</span>
+<span class="cmd">DECR</span>   rl:{ws}:2026060415</pre>
+    </div>
+
+    <div class="edges">
+      <div class="et">Edge cases</div>
+      <ul class="tight">
+        <li><b>Boundary bursts.</b> A fixed window allows up to 2× the limit across the hour seam (full quota at :59 + full quota at :00). If that's unacceptable, switch to a <b>sliding-window log</b>: <code>ZADD rl:{ws} now now</code> → <code>ZREMRANGEBYSCORE … 0 (now-3600)</code> → <code>ZCARD</code>. Costs more memory; gives a true rolling hour.</li>
+        <li><b>Plan changes mid-window.</b> Never bake the limit into the counter — read <code>ws:{ws}:limit</code> each check and invalidate it on upgrade/downgrade so the new cap is instant.</li>
+        <li><b>Don't burn quota on non-sends.</b> Reserve before SendGrid, <code>DECR</code> on skip/permanent-fail. Accept a rare tiny overcount if a worker crashes between reserve and send (self-corrects next hour).</li>
+        <li><b>Clock skew.</b> Derive the window bucket from <code>Redis TIME</code> (or a single API clock), not each worker's local clock, so all workers agree on “this hour.”</li>
+        <li><b>Two layers.</b> This hourly key is the <b>billing cap</b>; the per-minute <code>tb:{ws}</code> token bucket is separate <b>provider smoothing</b> — a job must pass both.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 2. SUPPRESSION ============ -->
+  <section style="--c:var(--data)">
+    <div class="sec-head"><span class="sec-num">2</span><h2>Unsubscribe cache</h2><span class="hint">O(1) suppression check before every send</span></div>
+
+    <div class="kdef">
+      <div class="kb"><h4>Key convention</h4><div class="v">supp:{workspaceId}<br/><span style="color:var(--ink-soft)">+ supp:{ws}:loaded (flag)</span></div></div>
+      <div class="kb"><h4>Type</h4><div class="v"><span class="tb t-set">set</span> <span style="color:var(--ink-soft)">of contactId</span></div></div>
+      <div class="kb"><h4>TTL</h4><div class="v">None — suppression is permanent. Rebuilt from Postgres if evicted.</div></div>
+    </div>
+
+    <p class="note">A per-workspace set of suppressed <code>contactId</code>s gives an O(1) <code>SISMEMBER</code> on the hot path. <strong>Compliance is the hard constraint here:</strong> a false negative means emailing someone who unsubscribed. So “not in the set” may only be trusted when the set is known-<strong>complete</strong> — guarded by a <code>:loaded</code> flag.</p>
+
+    <div class="code">
+      <div class="cap">read (worker) · write (event worker) · rebuild</div>
+<pre><span class="c"># --- READ: send worker, before every send ---</span>
+<span class="cmd">EXISTS</span>    supp:{ws}:loaded         <span class="c"># is the cache known-complete?</span>
+<span class="cmd">SISMEMBER</span> supp:{ws} {contactId}     <span class="c"># 1 → skip send (suppressed)</span>
+<span class="c"># loaded flag missing → fall back to Postgres AND trigger rebuild (fail-safe)</span>
+
+<span class="c"># --- WRITE: event worker, on unsubscribe / hard bounce ---</span>
+<span class="cmd">SADD</span> supp:{ws} {contactId}          <span class="c"># mirror of contacts.status change</span>
+
+<span class="c"># --- REBUILD: on cold start / eviction ---</span>
+<span class="cmd">SADD</span> supp:{ws} c1 c2 c3 …            <span class="c"># bulk-load all suppressed ids from DB</span>
+<span class="cmd">SET</span>  supp:{ws}:loaded <span class="n">1</span>             <span class="c"># only now is "not a member" trustworthy</span>
+
+<span class="c"># --- RESUBSCRIBE (rare) ---</span>
+<span class="cmd">SREM</span> supp:{ws} {contactId}</pre>
+    </div>
+
+    <div class="edges">
+      <div class="et">Edge cases</div>
+      <ul class="tight">
+        <li><b>Eviction = compliance risk.</b> Put suppression on a <code>noeviction</code> instance/DB (or pin it), so a memory-pressure flush can't silently drop unsubscribes. If it does vanish, the <code>:loaded</code> flag is gone too → the worker fails safe to Postgres until rebuilt.</li>
+        <li><b>Completeness over freshness.</b> Treat a missing <code>:loaded</code> flag as “unknown,” never “clear.” The flag is the contract that makes a negative answer safe.</li>
+        <li><b>Huge tenants.</b> Millions of suppressed contacts still fit a set cheaply (tens of MB), but if memory matters use a <code>RedisBloom</code> filter — accept a tiny false-<i>positive</i> rate (occasionally skip a valid send) which is the compliance-safe direction to err.</li>
+        <li><b>Write ordering.</b> The unsubscribe event must hit Redis before (or atomically with) the DB write, or a send in-flight could slip through. The <code>SISMEMBER</code> + DB fallback covers the race.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3. CAMPAIGN PROGRESS ============ -->
+  <section style="--c:var(--ok)">
+    <div class="sec-head"><span class="sec-num">3</span><h2>Campaign send progress</h2><span class="hint">live counter for the dashboard</span></div>
+
+    <div class="kdef">
+      <div class="kb"><h4>Key convention</h4><div class="v">campaign:{id}:stats (hash)<br/>campaign:{id}:remaining (str)<br/>campaign:{id}:opens · :clicks (HLL)</div></div>
+      <div class="kb"><h4>Type</h4><div class="v"><span class="tb t-hash">hash</span> <span class="tb t-str">string</span> <span class="tb t-hll">HLL</span></div></div>
+      <div class="kb"><h4>TTL</h4><div class="v">48h, refreshed on write. Final counts persist to Postgres rollups.</div></div>
+    </div>
+
+    <p class="note">A single hash holds the per-status tallies the dashboard polls; <code>HINCRBY</code> is atomic so every worker updates the same fields without contention. <strong>Unique</strong> opens/clicks use HyperLogLog (<code>PFADD</code>) so we get a cardinality estimate without storing every contactId. <code>remaining</code> is the completion counter from the worker design.</p>
+
+    <div class="code">
+      <div class="cap">write (workers) · read (dashboard)</div>
+<pre><span class="c"># --- WRITE: send/event workers as each result settles ---</span>
+<span class="cmd">HINCRBY</span> campaign:{id}:stats sent <span class="n">1</span>        <span class="c"># also: failed | bounced | skipped | delivered</span>
+<span class="cmd">EXPIRE</span>  campaign:{id}:stats <span class="n">172800</span>        <span class="c"># slide the 48h window on activity</span>
+
+<span class="cmd">PFADD</span>   campaign:{id}:opens {contactId}    <span class="c"># unique opens (HLL ~0.8% error)</span>
+<span class="cmd">PFADD</span>   campaign:{id}:clicks {contactId}
+
+<span class="c"># --- READ: GET /campaigns/:id/stats ---</span>
+<span class="cmd">HGETALL</span> campaign:{id}:stats                <span class="c"># totals by status</span>
+<span class="cmd">PFCOUNT</span> campaign:{id}:opens                <span class="c"># unique open count</span>
+<span class="c"># merge with campaigns.* rollups for any campaign older than the 48h window</span></pre>
+    </div>
+
+    <div class="edges">
+      <div class="et">Edge cases</div>
+      <ul class="tight">
+        <li><b>Drift &amp; eviction.</b> The hash is a live mirror, not truth. The reconciliation sweeper (worker design §5) re-derives counts from Postgres for stuck/old campaigns, so a lost <code>HINCRBY</code> never corrupts the final number the user sees.</li>
+        <li><b>Total vs unique.</b> Keep totals in the hash (one person opening 5× = 5) and uniques in the HLL (= 1). Don't try to derive one from the other.</li>
+        <li><b>Cold dashboard.</b> Once a campaign finishes and the 48h window lapses, the key is gone by design — the stats endpoint reads the persisted <code>campaigns.sent_count / open_count / …</code> rollups instead.</li>
+        <li><b>Live updates.</b> Push deltas to the dashboard via SSE/WebSocket rather than hammering <code>HGETALL</code> — or poll on a sane interval (e.g. 2–5s) while status = <code>sending</code>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 4. SESSIONS ============ -->
+  <section style="--c:var(--ext)">
+    <div class="sec-head"><span class="sec-num">4</span><h2>Session store</h2><span class="hint">refresh sessions + access-token revocation</span></div>
+
+    <div class="kdef">
+      <div class="kb"><h4>Key convention</h4><div class="v">sess:{sessionId} (hash)<br/>user:{userId}:sessions (set)<br/>auth:bl:{jti} (string)</div></div>
+      <div class="kb"><h4>Type</h4><div class="v"><span class="tb t-hash">hash</span> <span class="tb t-set">set</span> <span class="tb t-str">string</span></div></div>
+      <div class="kb"><h4>TTL</h4><div class="v">session 30d sliding; denylist = access-token remaining life (~15m)</div></div>
+    </div>
+
+    <p class="note">Access tokens are stateless JWTs; Redis stores the <strong>refresh session</strong> (for rotation &amp; revocation) and a short-lived <strong>denylist</strong> so a logout can kill an access token before it naturally expires. A per-user index set powers “log out of all devices.”</p>
+
+    <div class="code">
+      <div class="cap">login · refresh · logout · revoke-all</div>
+<pre><span class="c"># --- LOGIN: create session + index it ---</span>
+<span class="cmd">HSET</span>    sess:{sid} userId u_… workspaceId ws_… role member rtHash …
+<span class="cmd">EXPIRE</span>  sess:{sid} <span class="n">2592000</span>           <span class="c"># 30d absolute / sliding cap</span>
+<span class="cmd">SADD</span>    user:{uid}:sessions {sid}     <span class="c"># for device list + revoke-all</span>
+
+<span class="c"># --- REFRESH: validate + rotate (prevents replay) ---</span>
+<span class="cmd">HGET</span>    sess:{sid} rtHash             <span class="c"># compare to presented refresh token</span>
+<span class="cmd">HSET</span>    sess:{sid} rtHash {newHash}   <span class="c"># rotate on every use</span>
+<span class="cmd">EXPIRE</span>  sess:{sid} <span class="n">2592000</span>           <span class="c"># slide the window</span>
+
+<span class="c"># --- LOGOUT: drop session + denylist the live access token ---</span>
+<span class="cmd">DEL</span>     sess:{sid}
+<span class="cmd">SREM</span>    user:{uid}:sessions {sid}
+<span class="cmd">SET</span>     auth:bl:{jti} <span class="n">1</span> <span class="kw">EX</span> {tokenTtlRemaining}   <span class="c"># ~15m, then self-expires</span>
+
+<span class="c"># --- REVOKE-ALL (password change / "log out everywhere") ---</span>
+<span class="cmd">SMEMBERS</span> user:{uid}:sessions          <span class="c"># → DEL each sess:{sid}</span></pre>
+    </div>
+
+    <div class="edges">
+      <div class="et">Edge cases</div>
+      <ul class="tight">
+        <li><b>Idle vs absolute expiry.</b> Slide the TTL on refresh for convenience, but enforce a hard <code>maxAge</code> stored in the hash so a session can't live forever just by being used.</li>
+        <li><b>Orphaned index entries.</b> When <code>sess:{sid}</code> TTL-expires, its id lingers in <code>user:{uid}:sessions</code> (Redis won't auto-remove set members). Lazily <code>SREM</code> on read when the session is gone, or sweep periodically.</li>
+        <li><b>Denylist only matters until expiry.</b> Checking <code>auth:bl:{jti}</code> on each request gives instant revocation; the key auto-expires when the token would have anyway, so the denylist stays tiny. Skip the check entirely if ~15m of residual validity is acceptable.</li>
+        <li><b>Token theft / rotation.</b> Rotating <code>rtHash</code> on every refresh means a stolen-then-reused old refresh token fails the compare — detect reuse and revoke the whole session family.</li>
+        <li><b>Store hashes, not secrets.</b> Persist a hash of the refresh token (<code>rtHash</code>), never the raw token — a Redis dump must not leak usable credentials.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

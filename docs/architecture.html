@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — System Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg: oklch(0.97 0.005 240);
+    --paper: oklch(0.995 0.003 240);
+    --ink: oklch(0.27 0.02 260);
+    --ink-soft: oklch(0.52 0.02 260);
+    --hair: oklch(0.89 0.01 260);
+
+    --client: oklch(0.60 0.13 50);
+    --app:    oklch(0.52 0.13 275);
+    --data:   oklch(0.55 0.09 200);
+    --ext:    oklch(0.54 0.13 320);
+
+    --send:  oklch(0.62 0.16 45);
+    --track: oklch(0.56 0.13 250);
+    --ana:   oklch(0.56 0.12 155);
+    --io:    oklch(0.66 0.01 260);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:var(--bg); color:var(--ink); font-family:"Space Grotesk",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ padding:34px 30px 48px; }
+
+  .head{ max-width:1380px; margin:0 auto 22px; }
+  .eyebrow{ font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-soft); }
+  h1{ font-size:30px; font-weight:600; letter-spacing:-0.01em; margin:6px 0 4px; }
+  .sub{ font-size:15px; color:var(--ink-soft); max-width:760px; }
+
+  .legend{ display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:18px; align-items:center; }
+  .legend .grp{ display:flex; align-items:center; gap:16px; }
+  .chip{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-soft); font-weight:500; }
+  .chip i{ width:22px; height:0; border-top:3px solid currentColor; border-radius:2px; display:inline-block; }
+  .chip i.dash{ border-top-style:dashed; }
+  .chip b{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .legsep{ width:1px; height:16px; background:var(--hair); }
+
+  /* ---- diagram stage ---- */
+  .stage{ max-width:1380px; margin:0 auto; }
+  .scaler{ transform-origin:top left; }
+  .canvas{ position:relative; width:1380px; height:800px; }
+
+  svg#wires{ position:absolute; inset:0; width:1380px; height:800px; overflow:visible; pointer-events:none; }
+
+  .node{
+    position:absolute; width:200px; min-height:88px;
+    background:var(--paper); border:1px solid var(--hair);
+    border-radius:13px; padding:13px 15px 14px;
+    box-shadow: 0 1px 0 oklch(0.85 0.01 260 / .4), 0 6px 20px oklch(0.5 0.03 260 / .07);
+    display:flex; flex-direction:column; gap:5px; z-index:2;
+  }
+  .node::before{ content:""; position:absolute; left:0; top:14px; bottom:14px; width:4px; border-radius:0 4px 4px 0; background:var(--c); }
+  .node .tag{ font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--c); font-weight:600; }
+  .node .name{ font-size:16px; font-weight:600; letter-spacing:-0.01em; line-height:1.12; }
+  .node .meta{ font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); line-height:1.32; }
+
+  .node.client{ --c:var(--client); }
+  .node.app{ --c:var(--app); }
+  .node.data{ --c:var(--data); }
+  .node.ext{ --c:var(--ext); }
+  .node.soft{ box-shadow:none; background:oklch(0.985 0.004 240); border-style:dashed; }
+
+  /* band labels */
+  .band{ position:absolute; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-soft); opacity:.8; z-index:1; }
+
+  .foot{ max-width:1380px; margin:30px auto 0; }
+</style>
+</head>
+<body>
+  <header class="head">
+    <div class="eyebrow">BulkSend · Platform Architecture</div>
+    <h1>System Architecture &amp; Send Pipeline</h1>
+    <p class="sub">End-to-end data flow from <strong>“user clicks Send Campaign”</strong> to <strong>“email delivered &amp; tracked.”</strong> Multi-tenant workspaces on GCP Cloud Run · PostgreSQL/Prisma · Kafka fan-out · Redis rate limiting · SendGrid delivery.</p>
+    <div class="legend">
+      <div class="grp">
+        <span class="chip" style="color:var(--send)"><i></i> Send pipeline</span>
+        <span class="chip" style="color:var(--track)"><i></i> Event tracking</span>
+        <span class="chip" style="color:var(--ana)"><i></i> Analytics read</span>
+        <span class="chip" style="color:var(--io)"><i class="dash"></i> Data store I/O</span>
+      </div>
+      <span class="legsep"></span>
+      <div class="grp">
+        <span class="chip"><b style="background:var(--client)"></b> Client</span>
+        <span class="chip"><b style="background:var(--app)"></b> Application · Cloud Run</span>
+        <span class="chip"><b style="background:var(--data)"></b> Data &amp; infra</span>
+        <span class="chip"><b style="background:var(--ext)"></b> External</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="scaler" id="scaler">
+      <div class="canvas" id="canvas">
+        <svg id="wires" viewBox="0 0 1380 800">
+          <defs>
+            <marker id="ah-send" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="var(--send)"/></marker>
+            <marker id="ah-track" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="var(--track)"/></marker>
+            <marker id="ah-ana" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="var(--ana)"/></marker>
+            <marker id="ah-io" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="var(--io)"/></marker>
+          </defs>
+        </svg>
+
+        <div class="band" style="left:0; top:120px;">① Application &amp; send pipeline</div>
+        <div class="band" style="left:0; top:372px;">Data layer · source of truth + cache</div>
+        <div class="band" style="left:0; top:622px;">② Event ingestion &amp; tracking</div>
+
+        <!-- top band: send pipeline -->
+        <div class="node client" id="react" style="left:40px; top:150px;">
+          <span class="tag">Client</span>
+          <span class="name">Web Dashboard</span>
+          <span class="meta">React + TS · clicks “Send”</span>
+        </div>
+        <div class="node app" id="api" style="left:320px; top:150px;">
+          <span class="tag">Cloud Run</span>
+          <span class="name">Campaign API</span>
+          <span class="meta">Express · POST /campaigns/:id/send</span>
+        </div>
+        <div class="node data" id="kafkaSend" style="left:600px; top:150px;">
+          <span class="tag">Kafka</span>
+          <span class="name">send-jobs topic</span>
+          <span class="meta">1 message / contact</span>
+        </div>
+        <div class="node app" id="workers" style="left:880px; top:150px;">
+          <span class="tag">Cloud Run</span>
+          <span class="name">Send Workers</span>
+          <span class="meta">autoscaled consumers</span>
+        </div>
+        <div class="node ext" id="sendgrid" style="left:1160px; top:150px;">
+          <span class="tag">External</span>
+          <span class="name">SendGrid</span>
+          <span class="meta">v3 Mail Send API</span>
+        </div>
+        <div class="node ext" id="recipient" style="left:1160px; top:20px;">
+          <span class="tag">External</span>
+          <span class="name">Recipient Inbox</span>
+          <span class="meta">email delivered</span>
+        </div>
+
+        <!-- data band -->
+        <div class="node client soft" id="contacts" style="left:40px; top:400px;">
+          <span class="tag" style="color:var(--client)">Client</span>
+          <span class="name">Contacts &amp; Segments</span>
+          <span class="meta">CSV upload · segmentation</span>
+        </div>
+        <div class="node data" id="postgres" style="left:380px; top:400px;">
+          <span class="tag">PostgreSQL · Prisma</span>
+          <span class="name">Primary Database</span>
+          <span class="meta">workspaces · contacts · campaigns · events</span>
+        </div>
+        <div class="node data" id="redis" style="left:720px; top:400px;">
+          <span class="tag">Redis</span>
+          <span class="name">Rate Limit &amp; Cache</span>
+          <span class="meta">per-workspace token bucket · stat counters</span>
+        </div>
+
+        <!-- bottom band: tracking -->
+        <div class="node app" id="webhook" style="left:1160px; top:650px;">
+          <span class="tag">Cloud Run</span>
+          <span class="name">Event Webhook API</span>
+          <span class="meta">POST /webhooks/sendgrid</span>
+        </div>
+        <div class="node data" id="kafkaEvents" style="left:880px; top:650px;">
+          <span class="tag">Kafka</span>
+          <span class="name">events topic</span>
+          <span class="meta">open·click·bounce·unsub</span>
+        </div>
+        <div class="node app" id="eventWorkers" style="left:600px; top:650px;">
+          <span class="tag">Cloud Run</span>
+          <span class="name">Event Workers</span>
+          <span class="meta">ingest &amp; aggregate</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+
+  <script>
+  (function(){
+    const NS="http://www.w3.org/2000/svg";
+    const svg=document.getElementById("wires");
+    const R=id=>{const e=document.getElementById(id);return{x:e.offsetLeft,y:e.offsetTop,w:e.offsetWidth,h:e.offsetHeight};};
+    function pt(id,side,t){t=(t==null?0.5:t);const r=R(id);
+      if(side==="l")return{x:r.x,y:r.y+r.h*t};
+      if(side==="r")return{x:r.x+r.w,y:r.y+r.h*t};
+      if(side==="t")return{x:r.x+r.w*t,y:r.y};
+      return{x:r.x+r.w*t,y:r.y+r.h};
+    }
+    // [from id, from side, from t], [to id, to side, to t], flow, number, label, dashed
+    const conns=[
+      [["react","r"],["api","l"],"send",1,"send campaign"],
+      [["api","b",0.42],["postgres","t",0.45],"send",2,"load contacts · persist run"],
+      [["api","r"],["kafkaSend","l"],"send",3,"enqueue per contact"],
+      [["kafkaSend","r"],["workers","l"],"send",4,"consume job"],
+      [["workers","b",0.5],["redis","t",0.5],"send",5,"rate-limit token check"],
+      [["workers","r"],["sendgrid","l"],"send",6,"send via API"],
+      [["sendgrid","t"],["recipient","b"],"send",7,"deliver"],
+      [["sendgrid","b"],["webhook","t"],"track",8,"event webhooks"],
+      [["webhook","l"],["kafkaEvents","r"],"track",9,"publish event"],
+      [["kafkaEvents","l"],["eventWorkers","r"],"track",10,"consume event"],
+      [["eventWorkers","t",0.5],["postgres","b",0.55],"track",11,"persist · update stats"],
+      [["postgres","l",0.55],["react","b",0.5],"ana",12,"campaign analytics (via API)"],
+      [["contacts","r"],["postgres","l",0.85],"io",13,"CSV import",true]
+    ];
+    const mk={send:"ah-send",track:"ah-track",ana:"ah-ana",io:"ah-io"};
+    const col={send:"var(--send)",track:"var(--track)",ana:"var(--ana)",io:"var(--io)"};
+
+    conns.forEach(c=>{
+      const a=pt(c[0][0],c[0][1],c[0][2]);
+      const b=pt(c[1][0],c[1][1],c[1][2]);
+      const flow=c[2],num=c[3],label=c[4],dashed=c[5];
+      const p=document.createElementNS(NS,"path");
+      p.setAttribute("d",`M ${a.x} ${a.y} L ${b.x} ${b.y}`);
+      p.setAttribute("fill","none");
+      p.setAttribute("stroke",col[flow]);
+      p.setAttribute("stroke-width", dashed?"1.7":"2.2");
+      if(dashed)p.setAttribute("stroke-dasharray","5 5");
+      p.setAttribute("marker-end",`url(#${mk[flow]})`);
+      p.setAttribute("stroke-linecap","round");
+      p.setAttribute("opacity", dashed?"0.75":"0.95");
+      svg.appendChild(p);
+
+      const ang=Math.atan2(b.y-a.y,b.x-a.x);
+      // label at midpoint with white halo
+      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      const perp=ang-Math.PI/2;
+      const off= num===0?0:18;
+      const tx=mx+Math.cos(perp)*off, ty=my+Math.sin(perp)*off;
+      const t=document.createElementNS(NS,"text");
+      t.setAttribute("x",tx); t.setAttribute("y",ty);
+      t.setAttribute("text-anchor","middle");
+      t.setAttribute("dominant-baseline","middle");
+      t.setAttribute("font-family",'"IBM Plex Mono",monospace');
+      t.setAttribute("font-size", num===0?"10.5":"11.5");
+      t.setAttribute("font-weight","500");
+      t.setAttribute("fill", num===0?"var(--io)":"var(--ink)");
+      t.setAttribute("style","paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round");
+      t.textContent=label;
+      svg.appendChild(t);
+
+      if(num>0){
+        const bx=a.x+Math.cos(ang)*30, by=a.y+Math.sin(ang)*30;
+        const cir=document.createElementNS(NS,"circle");
+        cir.setAttribute("cx",bx); cir.setAttribute("cy",by); cir.setAttribute("r","11.5");
+        cir.setAttribute("fill",col[flow]);
+        cir.setAttribute("stroke","var(--paper)"); cir.setAttribute("stroke-width","2.5");
+        svg.appendChild(cir);
+        const n=document.createElementNS(NS,"text");
+        n.setAttribute("x",bx); n.setAttribute("y",by+0.5);
+        n.setAttribute("text-anchor","middle"); n.setAttribute("dominant-baseline","central");
+        n.setAttribute("font-family",'"Space Grotesk",sans-serif');
+        n.setAttribute("font-size","12"); n.setAttribute("font-weight","700");
+        n.setAttribute("fill","#fff"); n.textContent=num;
+        svg.appendChild(n);
+      }
+    });
+
+    // ---- step-by-step caption ----
+    const steps=[
+      ["Send","User clicks <b>Send Campaign</b> in the dashboard → <code>POST /campaigns/:id/send</code> to the Campaign API."],
+      ["Send","API resolves the workspace, loads matching contacts via the segment query, and marks the run <code>QUEUED</code> in Postgres."],
+      ["Send","API fans out — one Kafka message per contact onto the <code>send-jobs</code> topic (durable backlog, decoupled from request)."],
+      ["Send","Send Workers (autoscaled on Cloud Run) consume jobs in parallel."],
+      ["Send","Each worker checks the per-workspace <b>Redis token bucket</b>; if over limit the job is delayed/requeued, protecting the SendGrid quota."],
+      ["Send","Worker renders the message and calls the SendGrid v3 API; the SendGrid <code>messageId</code> is written back to Postgres."],
+      ["Send","SendGrid delivers the email to the recipient’s inbox."],
+      ["Track","SendGrid posts delivery events (open · click · bounce · unsubscribe) to the Event Webhook API."],
+      ["Track","Webhook validates the signature and publishes each event to the Kafka <code>events</code> topic."],
+      ["Track","Event Workers consume events idempotently."],
+      ["Track","Events are persisted to Postgres and aggregate counters updated (cached in Redis) — bounces/unsubs update contact status."],
+      ["Read","The dashboard queries the API for per-campaign analytics, served from aggregated Postgres tables + Redis counters."]
+    ];
+    const foot=document.getElementById("foot");
+    const tone={Send:"var(--send)",Track:"var(--track)",Read:"var(--ana)"};
+    foot.innerHTML='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:14px">Data flow — click Send → delivered &amp; tracked</div>'+
+      '<ol style="list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 34px;counter-reset:s">'+
+      steps.map(s=>`<li style="counter-increment:s;display:flex;gap:13px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--ink)">
+        <span style="flex:none;width:25px;height:25px;border-radius:50%;background:${tone[s[0]]};color:#fff;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;margin-top:1px">${'\\u200b'}</span>
+        <span>${s[1]}</span></li>`).join('')+'</ol>';
+    // number the circles via counter content
+    [...foot.querySelectorAll('li > span:first-child')].forEach((el,i)=>el.textContent=i+1);
+    foot.querySelectorAll('code').forEach(c=>{c.style.cssText="font-family:'IBM Plex Mono',monospace;font-size:12px;background:oklch(0.93 0.01 260);padding:1px 5px;border-radius:4px;color:var(--ink)";});
+
+    // ---- scale to fit width ----
+    const scaler=document.getElementById("scaler");
+    function fit(){
+      const avail=Math.min(document.querySelector(".stage").clientWidth,1380);
+      const s=avail/1380;
+      scaler.style.transform=`scale(${s})`;
+      scaler.style.height=(800*s)+"px";
+      scaler.parentElement.style.height=(800*s)+"px";
+    }
+    fit(); window.addEventListener("resize",fit);
+    if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
+  })();
+  </script>
+</body>
+</html>

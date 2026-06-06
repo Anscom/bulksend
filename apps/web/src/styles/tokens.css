@@ -1,0 +1,68 @@
+/* ============================================================================
+   BulkSend — CSS custom properties (design tokens)
+   Single source of truth for both the app shell and marketing site.
+   ========================================================================== */
+:root {
+  /* --- App palette --- */
+  --ink:          oklch(0.23 0.02 265);
+  --ink-2:        oklch(0.34 0.02 265);
+  --slate:        oklch(0.52 0.02 265);
+  --slate-3:      oklch(0.62 0.015 265);
+  --faint:        oklch(0.72 0.012 265);
+  --line:         oklch(0.91 0.006 265);
+  --line-2:       oklch(0.95 0.005 265);
+  --paper:        #fff;
+  --bg:           oklch(0.975 0.004 265);
+  --bg-2:         oklch(0.965 0.006 265);
+
+  /* --- Brand --- */
+  --indigo:       oklch(0.52 0.16 270);
+  --indigo-600:   oklch(0.46 0.17 270);
+  --indigo-300:   oklch(0.72 0.10 270);
+  --indigo-tint:  oklch(0.96 0.025 270);
+  --indigo-tint2: oklch(0.93 0.04 270);
+
+  --coral:        oklch(0.65 0.18 36);
+  --coral-600:    oklch(0.61 0.18 36);
+  --coral-tint:   oklch(0.95 0.04 45);
+
+  /* --- Semantic --- */
+  --green:        oklch(0.58 0.13 158);
+  --green-tint:   oklch(0.95 0.04 158);
+  --amber:        oklch(0.70 0.14 70);
+  --amber-tint:   oklch(0.95 0.05 75);
+  --red:          oklch(0.58 0.18 25);
+  --red-tint:     oklch(0.95 0.04 25);
+  --blue:         oklch(0.58 0.13 240);
+  --blue-tint:    oklch(0.95 0.035 240);
+
+  /* --- Dark surfaces (hero, pipeline, CTA) --- */
+  --dark:         oklch(0.20 0.025 270);
+  --dark-2:       oklch(0.25 0.028 270);
+  --dark-card:    oklch(0.24 0.03 270);
+  --dark-line:    oklch(0.34 0.03 270);
+  --dark-fg:      oklch(0.96 0.01 265);
+  --dark-soft:    oklch(0.74 0.02 265);
+
+  /* --- Typography --- */
+  --display: "Space Grotesk", system-ui, sans-serif;
+  --sans:    "IBM Plex Sans", system-ui, sans-serif;
+  --mono:    "IBM Plex Mono", ui-monospace, monospace;
+
+  /* --- Shape --- */
+  --r-sm:  7px;
+  --r:     10px;
+  --r-lg:  14px;
+  --r-xl:  18px;
+
+  /* --- Elevation --- */
+  --shadow-sm:  0 1px 2px oklch(0.4 0.03 265 / 0.06);
+  --shadow:     0 1px 3px oklch(0.4 0.03 265 / 0.07), 0 8px 24px oklch(0.4 0.03 265 / 0.06);
+  --shadow-pop: 0 6px 16px oklch(0.3 0.03 265 / 0.10), 0 20px 50px oklch(0.3 0.03 265 / 0.14);
+  --shadow-lg:  0 8px 30px oklch(0.3 0.04 270 / 0.14), 0 30px 70px oklch(0.3 0.04 270 / 0.13);
+
+  /* --- Layout --- */
+  --sidebar-w:  250px;
+  --container:  1200px;
+  --gut:        clamp(20px, 5vw, 40px);
+}

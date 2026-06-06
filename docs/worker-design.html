@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BulkSend — Send Worker Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg: oklch(0.97 0.005 240);
+    --paper: oklch(0.995 0.003 240);
+    --ink: oklch(0.27 0.02 260);
+    --ink-soft: oklch(0.52 0.02 260);
+    --hair: oklch(0.89 0.01 260);
+    --app:   oklch(0.52 0.13 275);
+    --data:  oklch(0.50 0.10 200);
+    --ext:   oklch(0.54 0.13 320);
+    --send:  oklch(0.60 0.16 45);
+    --track: oklch(0.52 0.13 250);
+    --ok:    oklch(0.54 0.12 155);
+    --warn:  oklch(0.61 0.14 70);
+    --bad:   oklch(0.55 0.17 25);
+    --code-bg: oklch(0.23 0.02 265);
+    --code-fg: oklch(0.91 0.01 250);
+    --code-dim: oklch(0.60 0.02 255);
+    --code-key: oklch(0.74 0.13 50);
+    --code-ty:  oklch(0.78 0.10 195);
+    --code-str: oklch(0.80 0.11 145);
+    --code-fn:  oklch(0.80 0.11 290);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:var(--bg); color:var(--ink); font-family:"Space Grotesk",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  body{ padding:40px 26px 80px; }
+  .wrap{ max-width:1180px; margin:0 auto; }
+  .mono{ font-family:"IBM Plex Mono",monospace; }
+
+  .eyebrow{ font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-soft); }
+  h1{ font-size:32px; font-weight:600; letter-spacing:-0.015em; margin:7px 0 6px; }
+  .lede{ font-size:16px; line-height:1.5; color:var(--ink-soft); max-width:850px; }
+
+  section{ margin-top:50px; }
+  .sec-head{ display:flex; align-items:center; gap:13px; margin-bottom:18px; padding-bottom:12px; border-bottom:1px solid var(--hair); }
+  .sec-num{ font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:#fff; background:var(--c,var(--app)); width:27px; height:27px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .sec-head h2{ font-size:21px; font-weight:600; letter-spacing:-0.01em; }
+  .sec-head .hint{ margin-left:auto; font-size:13px; color:var(--ink-soft); }
+
+  p.note{ font-size:14.5px; line-height:1.6; color:var(--ink); max-width:900px; }
+  p.note + p.note{ margin-top:11px; }
+  p.note code, li code{ font-family:"IBM Plex Mono",monospace; font-size:12.5px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+  strong{ font-weight:600; }
+
+  /* flow strip */
+  .flow{ display:flex; align-items:stretch; flex-wrap:wrap; gap:0; margin:8px 0 8px; }
+  .pnode{ background:var(--paper); border:1px solid var(--hair); border-left:4px solid var(--c,var(--app)); border-radius:11px; padding:11px 14px; min-width:120px; box-shadow:0 4px 14px oklch(0.5 0.03 260/.06); }
+  .pnode .pk{ font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--c,var(--app)); font-weight:600; }
+  .pnode .pn{ font-size:14px; font-weight:600; margin-top:3px; }
+  .pnode .ps{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-soft); margin-top:3px; }
+  .arrow{ display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:58px; padding:0 4px; color:var(--ink-soft); }
+  .arrow .lbl{ font-family:"IBM Plex Mono",monospace; font-size:10px; margin-bottom:2px; white-space:nowrap; }
+  .arrow .ln{ width:100%; height:2px; background:currentColor; position:relative; opacity:.5; }
+  .arrow .ln::after{ content:""; position:absolute; right:-1px; top:-3px; border-left:7px solid currentColor; border-top:4px solid transparent; border-bottom:4px solid transparent; }
+  .c-app{ --c:var(--app); } .c-data{ --c:var(--data); } .c-ext{ --c:var(--ext); } .c-send{ --c:var(--send); } .c-ok{ --c:var(--ok); } .c-warn{ --c:var(--warn); } .c-bad{ --c:var(--bad); }
+
+  /* steps */
+  ol.steps{ list-style:none; counter-reset:s; display:flex; flex-direction:column; gap:9px; margin:6px 0 18px; }
+  ol.steps li{ counter-increment:s; display:flex; gap:13px; align-items:flex-start; font-size:13.5px; line-height:1.5; color:var(--ink); }
+  ol.steps li::before{ content:counter(s); flex:none; width:23px; height:23px; border-radius:50%; background:var(--c,var(--app)); color:#fff; font-weight:700; font-size:11.5px; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  ol.steps li code{ font-family:"IBM Plex Mono",monospace; font-size:12px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+
+  /* code */
+  .code{ background:var(--code-bg); border-radius:13px; padding:16px 20px; margin:6px 0 18px; overflow-x:auto; box-shadow:0 10px 30px oklch(0.3 0.03 265/.18); }
+  .code .cap{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--code-dim); margin-bottom:11px; }
+  .code .cap b{ color:var(--code-ty); font-weight:600; text-transform:none; letter-spacing:.02em; font-size:12px; }
+  pre{ font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.6; color:var(--code-fg); white-space:pre; }
+  .k{ color:var(--code-key); } .ty{ color:var(--code-ty); } .s{ color:var(--code-str); } .c{ color:var(--code-dim); font-style:italic; } .fn{ color:var(--code-fn); }
+
+  /* cards + table */
+  .cards{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; margin-top:6px; }
+  .card{ background:var(--paper); border:1px solid var(--hair); border-radius:13px; padding:16px 17px; box-shadow:0 4px 14px oklch(0.5 0.03 260/.05); }
+  .card .ch{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
+  .card .dot{ width:11px; height:11px; border-radius:3px; background:var(--c,var(--app)); flex:none; }
+  .card .ct{ font-size:14.5px; font-weight:600; letter-spacing:-0.01em; }
+  .card p{ font-size:13px; line-height:1.55; color:var(--ink); }
+  .card code{ font-family:"IBM Plex Mono",monospace; font-size:12px; background:oklch(0.93 0.01 260); padding:1px 5px; border-radius:4px; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--paper); border:1px solid var(--hair); border-radius:12px; overflow:hidden; font-size:13.5px; }
+  thead th{ text-align:left; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; padding:11px 14px; background:oklch(0.95 0.005 250); border-bottom:1px solid var(--hair); }
+  tbody td{ padding:12px 14px; border-bottom:1px solid var(--hair); vertical-align:top; line-height:1.45; }
+  tbody tr:last-child td{ border-bottom:none; }
+  td .mono{ font-family:"IBM Plex Mono",monospace; font-size:12.5px; }
+  .tagcol{ font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px; }
+
+  .callout{ display:flex; gap:13px; background:oklch(0.96 0.02 70); border:1px solid oklch(0.86 0.05 70); border-radius:12px; padding:14px 16px; margin-top:18px; }
+  .callout.good{ background:oklch(0.96 0.03 155); border-color:oklch(0.85 0.06 155); }
+  .callout .ci{ font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--warn); flex:none; }
+  .callout.good .ci{ color:var(--ok); }
+  .callout p{ font-size:13.5px; line-height:1.55; color:var(--ink); }
+  .callout code{ font-family:"IBM Plex Mono",monospace; font-size:12px; background:oklch(1 0 0/.5); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">BulkSend · Send Worker Service</div>
+    <h1>Worker Design — Node.js + TypeScript</h1>
+    <p class="lede">A KafkaJS worker that turns a campaign job into delivered, tracked email. One deployable, <strong>two consumer roles</strong>: a <strong>dispatcher</strong> that fans a campaign out into per-recipient jobs, and a <strong>sender</strong> that does the rate-limited, idempotent send. Built for at-least-once delivery and crash-safe, distributed completion tracking.</p>
+  </header>
+
+  <!-- ============ 1. SHAPE ============ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">1</span><h2>Why two roles, not one loop</h2><span class="hint">campaign_jobs → fan-out → email.send</span></div>
+
+    <p class="note">A naive worker would consume <code>campaign_jobs</code> and loop over every contact inline. That can't satisfy your last requirement — <em>“track completion when processing is distributed across workers”</em> — because one message would be pinned to one worker for the whole campaign, and a crash mid-loop would reprocess millions of contacts on redelivery. So the worker splits the job in two:</p>
+
+    <div class="flow">
+      <div class="pnode c-data"><div class="pk">topic</div><div class="pn">campaign_jobs</div><div class="ps">{ campaignId, workspaceId }</div></div>
+      <div class="arrow"><span class="lbl">consume</span><span class="ln"></span></div>
+      <div class="pnode c-app"><div class="pk">role A</div><div class="pn">Dispatcher</div><div class="ps">page contacts · seed counter · fan out</div></div>
+      <div class="arrow"><span class="lbl">produce N</span><span class="ln"></span></div>
+      <div class="pnode c-data"><div class="pk">topic</div><div class="pn">email.send</div><div class="ps">1 job / contact</div></div>
+      <div class="arrow"><span class="lbl">consume</span><span class="ln"></span></div>
+      <div class="pnode c-send"><div class="pk">role B ×N</div><div class="pn">Sender</div><div class="ps">limit · suppress · send · persist</div></div>
+      <div class="arrow"><span class="lbl">decr</span><span class="ln"></span></div>
+      <div class="pnode c-ok"><div class="pk">on 0</div><div class="pn">campaign → sent</div></div>
+    </div>
+
+    <p class="note">Steps <strong>1</strong> (fetch contacts) lives in the dispatcher; steps <strong>2–6</strong> (limit, suppress, send, persist, retry) run per-message in the sender so they parallelize across the consumer group; step <strong>7</strong> (mark sent) is driven by a shared atomic counter so whichever worker finishes the last contact closes the campaign. <code>campaign_jobs</code> stays exactly the contract you specified.</p>
+  </section>
+
+  <!-- ============ 2. DISPATCHER ============ -->
+  <section style="--c:var(--app)">
+    <div class="sec-head"><span class="sec-num">2</span><h2>Role A — Dispatcher</h2><span class="hint">consume campaign_jobs · resumable fan-out</span></div>
+
+    <ol class="steps">
+      <li><strong>Claim the campaign.</strong> Guarded transition <code>scheduled|draft → sending</code>. If no row updates, another worker already claimed it → idempotent no-op.</li>
+      <li><strong>Stream the audience.</strong> Page through the segment query with a keyset cursor — never load millions of contacts into memory.</li>
+      <li><strong>Create <code>sends</code> rows in bulk</strong> with <code>ON CONFLICT (campaign_id, contact_id) DO NOTHING</code>, so a re-run after a crash can't duplicate.</li>
+      <li><strong>Fan out</strong> one <code>EmailSendMessage</code> per created row to <code>email.send</code>, and persist the cursor as a resume point.</li>
+      <li><strong>Seed the completion counter once</strong> with the final recipient total (<code>SET … NX</code>) and store <code>recipient_count</code> on the campaign.</li>
+    </ol>
+
+    <div class="code">
+      <div class="cap">consumer: campaign_jobs · <b>dispatchCampaign()</b></div>
+<pre><span class="k">async function</span> <span class="fn">dispatchCampaign</span>({ campaignId, workspaceId }: <span class="ty">CampaignJob</span>) {
+  <span class="c">// (1) claim — UPDATE ... WHERE status IN ('scheduled','draft') RETURNING *</span>
+  <span class="k">const</span> campaign = <span class="k">await</span> db.campaign.<span class="fn">markSending</span>(campaignId, workspaceId);
+  <span class="k">if</span> (!campaign) <span class="k">return</span>;                  <span class="c">// already dispatched → no-op</span>
+
+  <span class="k">let</span> cursor = campaign.resumeCursor;       <span class="c">// resume after a crash</span>
+  <span class="k">let</span> total  = <span class="ty">0</span>;
+
+  <span class="c">// (2) page the segment with a keyset cursor</span>
+  <span class="k">for await</span> (<span class="k">const</span> page <span class="k">of</span> <span class="fn">streamContacts</span>(workspaceId, campaign.segmentId, cursor)) {
+    <span class="c">// (3) bulk insert sends — duplicates are swallowed</span>
+    <span class="k">const</span> created = <span class="k">await</span> db.sends.<span class="fn">insertMany</span>(
+      page.<span class="fn">map</span>(c => ({ campaignId, workspaceId, contactId: c.id, status: <span class="s">'pending'</span> })),
+      { onConflict: <span class="s">'DO NOTHING'</span> },
+    );
+    total += created.length;
+
+    <span class="c">// (4) fan out + checkpoint the cursor</span>
+    <span class="k">await</span> producer.<span class="fn">sendBatch</span>(<span class="s">'email.send'</span>, created.<span class="fn">map</span>(toSendMessage));
+    cursor = page.<span class="fn">at</span>(-<span class="ty">1</span>)!.id;
+    <span class="k">await</span> db.campaign.<span class="fn">saveCursor</span>(campaignId, cursor);
+  }
+
+  <span class="c">// (5) seed the completion counter ONCE, now that N is known</span>
+  <span class="k">await</span> redis.<span class="fn">set</span>(<span class="s">`campaign:${campaignId}:remaining`</span>, total, <span class="s">'NX'</span>);
+  <span class="k">await</span> db.campaign.<span class="fn">setRecipientCount</span>(campaignId, total);
+}                                            <span class="c">// commit offset only after this resolves</span></pre>
+    </div>
+
+    <div class="callout"><span class="ci">WHY</span><p>The dispatcher commits its Kafka offset <strong>only after the function returns</strong>. If it dies mid fan-out, the message is redelivered, <code>markSending</code> is a no-op, and the loop resumes from the saved cursor — already-created <code>sends</code> and already-produced jobs are absorbed by the unique constraint and idempotent sends.</p></div>
+  </section>
+
+  <!-- ============ 3. SENDER ============ -->
+  <section style="--c:var(--send)">
+    <div class="sec-head"><span class="sec-num">3</span><h2>Role B — Sender</h2><span class="hint">consume email.send · steps 2–6, per message</span></div>
+
+    <ol class="steps">
+      <li><strong>Rate limit</strong> — atomic Redis token-bucket per workspace. No token? Re-queue with a short delay; this is throttling, <em>not</em> a failure (attempt count untouched).</li>
+      <li><strong>Suppression check</strong> — O(1) <code>SISMEMBER</code> against the unsubscribe/bounce cache; on cache miss fall back to the DB and warm the cache. Suppressed → finalize as <code>skipped</code>.</li>
+      <li><strong>Send</strong> — call SendGrid with the message's <code>idempotencyKey</code> so a provider-side retry can't double-deliver.</li>
+      <li><strong>Persist</strong> — finalize the <code>sends</code> row with status + <code>provider_message_id</code> in one guarded update.</li>
+      <li><strong>Settle the counter</strong> — only a real <code>pending → terminal</code> transition decrements the campaign counter (step 7's trigger).</li>
+    </ol>
+
+    <div class="code">
+      <div class="cap">consumer: email.send · <b>handleSend()</b></div>
+<pre><span class="k">async function</span> <span class="fn">handleSend</span>(job: <span class="ty">EmailSendMessage</span>) {
+  <span class="c">// (2) per-workspace rate limit — atomic, see tokenBucket.lua</span>
+  <span class="k">if</span> (!(<span class="k">await</span> rateLimiter.<span class="fn">tryAcquire</span>(job.workspaceId))) {
+    <span class="k">return</span> <span class="fn">requeue</span>(job, <span class="s">'5s'</span>, { countsAsAttempt: <span class="k">false</span> });   <span class="c">// throttled, not failed</span>
+  }
+  <span class="c">// (3) suppression cache (unsubscribed / hard-bounced)</span>
+  <span class="k">if</span> (<span class="k">await</span> <span class="fn">isSuppressed</span>(job.workspaceId, job.contactId)) {
+    <span class="k">return</span> <span class="fn">finalize</span>(job, <span class="s">'skipped'</span>);
+  }
+  <span class="k">try</span> {
+    <span class="c">// (4) send via SendGrid (idempotencyKey dedupes provider-side)</span>
+    <span class="k">const</span> res = <span class="k">await</span> sendgrid.<span class="fn">send</span>(<span class="fn">render</span>(job), { idempotencyKey: job.idempotencyKey });
+    <span class="c">// (5) persist result + maybe complete the campaign</span>
+    <span class="k">await</span> <span class="fn">finalize</span>(job, <span class="s">'sent'</span>, res.messageId);
+  } <span class="k">catch</span> (err) {
+    <span class="k">await</span> <span class="fn">onSendError</span>(job, err);            <span class="c">// (6) retry or dead-letter</span>
+  }
+}                                          <span class="c">// commit offset after handler resolves (at-least-once)</span></pre>
+    </div>
+
+    <div class="code">
+      <div class="cap">exactly-once settle · <b>finalize()</b></div>
+<pre><span class="k">async function</span> <span class="fn">finalize</span>(job: <span class="ty">EmailSendMessage</span>, status: <span class="ty">SendStatus</span>, messageId?: <span class="ty">string</span>) {
+  <span class="c">// only the row STILL 'pending' is updated → returns 0 on redelivery</span>
+  <span class="k">const</span> changed = <span class="k">await</span> db.sends.<span class="fn">finalize</span>(job.sendId, status, messageId);
+  <span class="c">//   UPDATE sends SET status=$2, provider_message_id=$3, sent_at=now()</span>
+  <span class="c">//   WHERE id=$1 AND status='pending'  →  rowCount</span>
+  <span class="k">if</span> (changed === <span class="ty">0</span>) <span class="k">return</span>;               <span class="c">// already settled — stop, do NOT decrement again</span>
+
+  <span class="c">// (7) the decrement is now bound 1:1 to the state transition</span>
+  <span class="k">const</span> remaining = <span class="k">await</span> redis.<span class="fn">decr</span>(<span class="s">`campaign:${job.campaignId}:remaining`</span>);
+  <span class="k">if</span> (remaining &lt;= <span class="ty">0</span>) <span class="k">await</span> <span class="fn">completeCampaign</span>(job.campaignId);
+}</pre>
+    </div>
+
+    <div class="code">
+      <div class="cap">token bucket · <b>tokenBucket.lua</b> (one round-trip, atomic)</div>
+<pre><span class="c">-- KEYS[1]=bucket  ARGV: capacity, refillPerSec, now, cost</span>
+<span class="k">local</span> b = redis.<span class="fn">call</span>(<span class="s">'HMGET'</span>, KEYS[<span class="ty">1</span>], <span class="s">'tokens'</span>, <span class="s">'ts'</span>)
+<span class="k">local</span> tokens = <span class="fn">tonumber</span>(b[<span class="ty">1</span>]) <span class="k">or</span> <span class="fn">tonumber</span>(ARGV[<span class="ty">1</span>])
+<span class="k">local</span> ts     = <span class="fn">tonumber</span>(b[<span class="ty">2</span>]) <span class="k">or</span> <span class="fn">tonumber</span>(ARGV[<span class="ty">3</span>])
+tokens = math.<span class="fn">min</span>(<span class="fn">tonumber</span>(ARGV[<span class="ty">1</span>]), tokens + (ARGV[<span class="ty">3</span>]-ts)*ARGV[<span class="ty">2</span>])  <span class="c">-- refill</span>
+<span class="k">if</span> tokens &lt; <span class="fn">tonumber</span>(ARGV[<span class="ty">4</span>]) <span class="k">then return</span> <span class="ty">0</span> <span class="k">end</span>            <span class="c">-- throttled</span>
+redis.<span class="fn">call</span>(<span class="s">'HMSET'</span>, KEYS[<span class="ty">1</span>], <span class="s">'tokens'</span>, tokens-ARGV[<span class="ty">4</span>], <span class="s">'ts'</span>, ARGV[<span class="ty">3</span>])
+<span class="k">return</span> <span class="ty">1</span></pre>
+    </div>
+  </section>
+
+  <!-- ============ 4. ERROR HANDLING ============ -->
+  <section style="--c:var(--warn)">
+    <div class="sec-head"><span class="sec-num">4</span><h2>Error-handling strategy</h2><span class="hint">classify → retry tier → dead-letter</span></div>
+
+    <p class="note"><strong>Classify first.</strong> The retry budget is precious — never burn it on errors that can't succeed. Transient failures back off and retry; permanent failures settle immediately as a terminal outcome; throttling re-queues without consuming an attempt.</p>
+
+    <table>
+      <thead><tr><th>Class</th><th>Examples</th><th>Action</th><th>Counter</th></tr></thead>
+      <tbody>
+        <tr><td class="tagcol" style="color:var(--warn)">transient</td><td>429, 5xx, ETIMEDOUT, socket reset</td><td>Re-queue to next delay tier (<span class="mono">5s → 1m → 15m</span>), <span class="mono">attempt++</span>. Honor <span class="mono">Retry-After</span> on 429.</td><td>not yet</td></tr>
+        <tr><td class="tagcol" style="color:var(--bad)">permanent</td><td>400 invalid payload, 401, invalid address, hard bounce</td><td>Finalize <span class="mono">failed</span>/<span class="mono">bounced</span> now. No retry, no DLQ — it's a business outcome.</td><td>decrement</td></tr>
+        <tr><td class="tagcol" style="color:var(--app)">throttled</td><td>local token bucket empty</td><td>Re-queue with short delay, <strong>attempt unchanged</strong>.</td><td>not yet</td></tr>
+        <tr><td class="tagcol" style="color:var(--ink-soft)">exhausted</td><td>transient, but <span class="mono">attempt &gt; 3</span></td><td>Wrap as <span class="mono">DeadLetterMessage</span> → <span class="mono">email.send.dlq</span>, finalize <span class="mono">failed</span>.</td><td>decrement</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code">
+      <div class="cap">retry router · <b>onSendError()</b></div>
+<pre><span class="k">const</span> MAX_RETRIES = <span class="ty">3</span>;
+<span class="k">const</span> BACKOFF = [<span class="s">'5s'</span>, <span class="s">'1m'</span>, <span class="s">'15m'</span>];
+
+<span class="k">async function</span> <span class="fn">onSendError</span>(job: <span class="ty">EmailSendMessage</span>, err: <span class="ty">unknown</span>) {
+  <span class="k">const</span> cls = <span class="fn">classify</span>(err);
+  <span class="k">if</span> (cls.kind === <span class="s">'permanent'</span>) <span class="k">return</span> <span class="fn">finalize</span>(job, cls.isBounce ? <span class="s">'bounced'</span> : <span class="s">'failed'</span>);
+
+  <span class="k">if</span> (job.attempt &gt;= MAX_RETRIES) {        <span class="c">// exhausted → dead-letter</span>
+    <span class="k">await</span> <span class="fn">deadLetter</span>(job, err);
+    <span class="k">return</span> <span class="fn">finalize</span>(job, <span class="s">'failed'</span>);
+  }
+  <span class="k">const</span> delay = cls.retryAfter ?? BACKOFF[job.attempt];   <span class="c">// transient → back off</span>
+  <span class="k">await</span> <span class="fn">requeue</span>({ ...job, attempt: job.attempt + <span class="ty">1</span> }, delay, { lastError: err });
+}</pre>
+    </div>
+
+    <div class="cards" style="margin-top:18px">
+      <div class="card" style="--c:var(--ok)"><div class="ch"><span class="dot"></span><span class="ct">At-least-once + idempotent</span></div><p>Manual offset commit <em>after</em> the handler resolves. Redelivery is safe via three guards: <code>UNIQUE(campaign_id, contact_id)</code>, SendGrid <code>idempotencyKey</code>, and the <code>WHERE status='pending'</code> finalize.</p></div>
+      <div class="card" style="--c:var(--warn)"><div class="ch"><span class="dot"></span><span class="ct">Delay ≠ sleep</span></div><p>Retries republish to delay topics; the consumer never <code>sleep()</code>s on a partition (that would stall every other message behind it).</p></div>
+      <div class="card" style="--c:var(--bad)"><div class="ch"><span class="dot"></span><span class="ct">Poison messages</span></div><p>Anything that throws before classification (malformed job, repeated deserialization failure) is dead-lettered after its attempts so one bad message can't block the partition forever.</p></div>
+      <div class="card" style="--c:var(--app)"><div class="ch"><span class="dot"></span><span class="ct">Slow ≠ dead</span></div><p>Bounded batch sizes + tuned <code>max.poll.interval.ms</code> keep a busy worker from being falsely evicted mid-send during a SendGrid slowdown.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 5. COMPLETION ============ -->
+  <section style="--c:var(--ok)">
+    <div class="sec-head"><span class="sec-num">5</span><h2>Distributed completion tracking</h2><span class="hint">step 7 — who marks it “sent”?</span></div>
+
+    <p class="note">With work spread across the consumer group, no single worker knows when the campaign is done. The mechanism is a <strong>shared atomic counter plus a guarded transition</strong>, backed by a <strong>reconciliation sweeper</strong> for safety:</p>
+
+    <ol class="steps">
+      <li><strong>Seed.</strong> The dispatcher sets <code>campaign:{id}:remaining = N</code> exactly once, after counting the audience.</li>
+      <li><strong>Decrement on terminal transition only.</strong> Every <code>pending → sent|failed|bounced|skipped</code> settle does one atomic <code>DECR</code>. Because the decrement is gated on the guarded DB update (returns 0 on redelivery), it fires <strong>exactly once per contact</strong> even under at-least-once redelivery.</li>
+      <li><strong>The worker that hits 0 wins.</strong> <code>DECR</code> returns the new value atomically — exactly one worker sees <code>0</code> and runs <code>completeCampaign()</code>, itself a guarded <code>sending → sent</code> update so it's safe to call more than once.</li>
+      <li><strong>Sweeper reconciles drift.</strong> A periodic job re-derives truth from Postgres for any campaign stuck <code>sending</code>, covering a Redis eviction or a lost decrement.</li>
+    </ol>
+
+    <div class="code">
+      <div class="cap">guarded close + safety-net sweeper</div>
+<pre><span class="k">async function</span> <span class="fn">completeCampaign</span>(campaignId: <span class="ty">string</span>) {
+  <span class="c">// idempotent: only flips if still 'sending'</span>
+  <span class="k">const</span> ok = <span class="k">await</span> db.campaign.<span class="fn">markSent</span>(campaignId);   <span class="c">// UPDATE ... WHERE status='sending'</span>
+  <span class="k">if</span> (ok) <span class="k">await</span> redis.<span class="fn">del</span>(<span class="s">`campaign:${campaignId}:remaining`</span>);
+}
+
+<span class="c">// runs every ~60s — fixes counter drift (eviction, lost decrement)</span>
+<span class="k">async function</span> <span class="fn">reconcile</span>() {
+  <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> <span class="k">await</span> db.campaign.<span class="fn">stuckSending</span>({ olderThan: <span class="s">'2m'</span> })) {
+    <span class="k">const</span> done = <span class="k">await</span> db.sends.<span class="fn">countTerminal</span>(c.id);  <span class="c">// sent+failed+bounced+skipped</span>
+    <span class="k">if</span> (done &gt;= c.recipientCount) <span class="k">await</span> <span class="fn">completeCampaign</span>(c.id);
+    <span class="k">else</span> <span class="k">await</span> redis.<span class="fn">set</span>(<span class="s">`campaign:${c.id}:remaining`</span>, c.recipientCount - done); <span class="c">// re-sync</span>
+  }
+}</pre>
+    </div>
+
+    <div class="callout good"><span class="ci">KEY IDEA</span><p>Redis gives the <strong>fast, lock-free common path</strong> (one <code>DECR</code> per send, no contention, no <code>COUNT(*)</code> on the hot path); Postgres is the <strong>source of truth</strong> the sweeper falls back to. The DB transition guard makes the counter exactly-once; the sweeper makes the whole thing self-healing — a campaign can never get permanently stuck in <code>sending</code> just because a counter drifted.</p></div>
+
+    <div class="callout"><span class="ci">EDGE</span><p>A campaign with contacts still cycling through retry tiers stays <code>sending</code> until those settle (success or exhaustion → DLQ + <code>failed</code>). That's correct: “done” means <strong>every contact reached a terminal state</strong>, not merely “the queue drained.”</p></div>
+  </section>
+
+</div>
+</body>
+</html>
