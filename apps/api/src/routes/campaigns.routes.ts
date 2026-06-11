@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authenticate } from '../middleware/authenticate.js';
 import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
+import { rateLimit } from '../middleware/rate-limit.js';
 import * as svc from '../services/campaigns.service.js';
 
 const router = Router();
@@ -74,7 +75,7 @@ router.post('/:id/schedule', validate('body', ScheduleSchema), async (req, res, 
   } catch (err) { next(err); }
 });
 
-router.post('/:id/send', async (req, res, next) => {
+router.post('/:id/send', rateLimit, async (req, res, next) => {
   try {
     const idempotencyKey = req.headers['idempotency-key'] as string ?? `${req.params['id']}-${Date.now()}`;
     const campaign = await svc.sendCampaign(req.params['id']!, req.user!.workspaceId, idempotencyKey);

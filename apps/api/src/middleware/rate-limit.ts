@@ -1,4 +1,5 @@
 import { type Request, type Response, type NextFunction } from 'express';
+import { prisma } from '../db/client.js';
 import { redis } from '../redis/client.js';
 import { rlKey } from '../redis/keys.js';
 import { AppError } from '../lib/errors.js';
@@ -11,11 +12,17 @@ const PLAN_LIMITS: Record<string, number> = {
 
 /**
  * Billing-cap rate limiter (hourly fixed-window).
- * This is the API-side guard — workers have their own token-bucket.
+ * Loads workspace plan from DB; apply only to endpoints that consume send quota.
  */
 export async function rateLimit(req: Request, _res: Response, next: NextFunction) {
   const { workspaceId } = req.user!;
-  const plan = (req as Request & { workspace?: { plan: string } }).workspace?.plan ?? 'free';
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { plan: true },
+  });
+
+  const plan = workspace?.plan ?? 'free';
   const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS['free']!;
 
   if (limit === Infinity) return next();
@@ -24,7 +31,6 @@ export async function rateLimit(req: Request, _res: Response, next: NextFunction
   const count = await redis.incr(key);
 
   if (count === 1) {
-    // First increment this hour — set TTL to expire at the top of the next hour
     const now = new Date();
     const secondsToNextHour = (60 - now.getMinutes()) * 60 - now.getSeconds();
     await redis.expire(key, secondsToNextHour + 60);

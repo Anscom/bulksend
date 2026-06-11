@@ -24,6 +24,7 @@ const navItems = [
     group: 'Workspace',
     items: [
       { view: 'settings', label: 'Settings', badge: null },
+      { view: 'upgrade', label: 'Plans & Billing', badge: null },
     ],
   },
 ];
@@ -36,6 +37,7 @@ const icons: Record<string, React.ReactNode> = {
   analytics:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>,
   events:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>,
   settings:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.81 1.17V21a2 2 0 01-4 0v-.09A1.65 1.65 0 006 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 003.6 14"/></svg>,
+  upgrade:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
 };
 
 interface SidebarProps {
@@ -110,10 +112,18 @@ export function Sidebar({ onClose }: SidebarProps) {
         <div className="usage">
           <div className="ut">
             <span className="ul">Send rate · this hour</span>
-            <span className="uv">1,284 / 2,000</span>
+            <span className="uv">84 / 100</span>
           </div>
-          <div className="track"><div className="fill" style={{ width: '64%' }} /></div>
-          <div className="uh"><b>716</b> sends remaining · resets in 23m</div>
+          <div className="track"><div className="fill" style={{ width: '84%', background: 'var(--amber)' }} /></div>
+          <div className="uh" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span><b>16</b> remaining · resets in 23m</span>
+            <button
+              onClick={() => go('upgrade')}
+              style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--indigo)', fontWeight: 600, cursor: 'pointer', padding: 0, fontFamily: 'var(--mono)' }}
+            >
+              Upgrade ↑
+            </button>
+          </div>
         </div>
         <button className="user-chip" onClick={() => go('settings')}>
           <span className="avatar" style={{ background: 'var(--coral)' }}>{initials}</span>

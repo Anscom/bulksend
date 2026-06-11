@@ -1,8 +1,6 @@
 import { Router } from 'express';
-import { prisma } from '../db/client.js';
-import { redis } from '../redis/client.js';
-import { suppKey } from '../redis/keys.js';
 import { logger } from '../lib/logger.js';
+import * as trackingService from '../services/tracking.service.js';
 
 // Public routes — no JWT auth. Authenticated by short-lived signed tokens embedded in emails.
 const router = Router();
@@ -14,26 +12,12 @@ const PIXEL = Buffer.from(
 );
 
 /** GET /t/o/:sendId — open tracking pixel */
-router.get('/o/:sendId', async (req, res) => {
+router.get('/o/:sendId', (req, res) => {
   const { sendId } = req.params;
-  try {
-    await prisma.emailEvent.create({
-      data: {
-        sendId,
-        type: 'opened',
-        metadata: {
-          userAgent: req.headers['user-agent'],
-          ip: req.ip,
-        },
-        occurredAt: new Date(),
-        // workspaceId and campaignId denormalized via send lookup in worker
-        workspaceId: '',
-        campaignId: '',
-      },
-    }).catch(() => {}); // fire-and-forget; don't block the pixel
-  } catch (err) {
+
+  trackingService.recordOpen(sendId, req.headers['user-agent'], req.ip).catch((err) => {
     logger.warn({ err, sendId }, 'Open pixel error');
-  }
+  });
 
   res.set({
     'Content-Type': 'image/gif',
@@ -45,7 +29,7 @@ router.get('/o/:sendId', async (req, res) => {
 });
 
 /** GET /t/c/:sendId?url=... — click redirect */
-router.get('/c/:sendId', async (req, res) => {
+router.get('/c/:sendId', (req, res) => {
   const { sendId } = req.params;
   const url = decodeURIComponent(String(req.query['url'] ?? ''));
 
@@ -54,33 +38,20 @@ router.get('/c/:sendId', async (req, res) => {
     return;
   }
 
-  prisma.emailEvent.create({
-    data: {
-      sendId,
-      type: 'clicked',
-      metadata: { url, userAgent: req.headers['user-agent'] },
-      occurredAt: new Date(),
-      workspaceId: '',
-      campaignId: '',
-    },
-  }).catch(() => {});
+  trackingService.recordClick(sendId, url, req.headers['user-agent']).catch((err) => {
+    logger.warn({ err, sendId }, 'Click track error');
+  });
 
   res.redirect(302, url);
 });
 
-/** GET /t/u/:workspaceId/:contactEmail — unsubscribe handler */
+/** GET /t/u/:workspaceId/:contactEmail — one-click unsubscribe */
 router.get('/u/:workspaceId/:contactEmail', async (req, res) => {
   const { workspaceId, contactEmail } = req.params;
-  const email = decodeURIComponent(contactEmail);
+  const email = decodeURIComponent(contactEmail!);
 
   try {
-    await Promise.all([
-      prisma.contact.updateMany({
-        where: { workspaceId, email, deletedAt: null },
-        data: { status: 'unsubscribed' },
-      }),
-      redis.sadd(suppKey(workspaceId), email),
-    ]);
+    await trackingService.unsubscribeContact(workspaceId!, email);
   } catch (err) {
     logger.error({ err }, 'Unsubscribe error');
   }

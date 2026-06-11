@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Topbar } from '../../components/layout/Topbar.js';
 import { Badge } from '../../components/ui/Badge.js';
 import type { CampaignStatus } from '@bulksend/shared';
+
+type TabKey = 'all' | CampaignStatus;
 
 const campaigns = [
   { id: '1', name: 'Spring Launch 2026', sub: 'Your spring upgrade is here ✨', status: 'sending' as CampaignStatus, seg: 'Active subscribers', rec: '48,210', open: 61, click: 18, date: 'Today' },
@@ -26,26 +29,56 @@ function RateBar({ value, coral }: { value: number | null; coral?: boolean }) {
   );
 }
 
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'sending', label: 'Sending' },
+  { key: 'scheduled', label: 'Scheduled' },
+  { key: 'sent', label: 'Sent' },
+  { key: 'draft', label: 'Draft' },
+];
+
 export function CampaignsPage() {
   const navigate = useNavigate();
   const { onMenuOpen } = useOutletContext<{ onMenuOpen: () => void }>();
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
+
+  const counts: Record<TabKey, number> = {
+    all: campaigns.length,
+    sending: campaigns.filter(c => c.status === 'sending').length,
+    scheduled: campaigns.filter(c => c.status === 'scheduled').length,
+    sent: campaigns.filter(c => c.status === 'sent').length,
+    draft: campaigns.filter(c => c.status === 'draft').length,
+    paused: campaigns.filter(c => c.status === 'paused').length,
+    failed: campaigns.filter(c => c.status === 'failed').length,
+  };
+
+  const filtered = activeTab === 'all' ? campaigns : campaigns.filter(c => c.status === activeTab);
+
+  const drafts = counts.draft;
+  const subline = `${campaigns.length} campaigns${drafts > 0 ? ` · ${drafts} in draft` : ''}`;
 
   return (
     <div className="view active">
       <Topbar crumb="Acme Marketing" title="Campaigns" onMenuOpen={onMenuOpen} />
-      <div style={{ padding: '28px 24px 60px', maxWidth: 1240, margin: '0 auto' }}>
+      <div style={{ padding: '28px 28px 60px' }}>
 
         <div className="view-head">
           <div className="vh-l">
             <h2>Campaigns</h2>
-            <div className="vh-sub">8 campaigns · 2 in draft</div>
+            <div className="vh-sub">{subline}</div>
           </div>
           <div className="vh-actions">
             <div className="tabs">
-              <button className="tab active">All <span className="cnt">8</span></button>
-              <button className="tab">Sending <span className="cnt">1</span></button>
-              <button className="tab">Scheduled <span className="cnt">2</span></button>
-              <button className="tab">Draft <span className="cnt">1</span></button>
+              {TABS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  className={`tab${activeTab === key ? ' active' : ''}`}
+                  onClick={() => setActiveTab(key)}
+                >
+                  {label}
+                  {counts[key] > 0 && <span className="cnt">{counts[key]}</span>}
+                </button>
+              ))}
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => navigate('/campaigns/new')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
@@ -55,35 +88,41 @@ export function CampaignsPage() {
         </div>
 
         <div className="table-card">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Campaign</th>
-                <th>Status</th>
-                <th className="hide-sm">Segment</th>
-                <th className="hide-sm">Recipients</th>
-                <th>Open rate</th>
-                <th>Click rate</th>
-                <th className="hide-sm">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((c) => (
-                <tr key={c.id} onClick={() => navigate(`/campaigns/${c.id}`)}>
-                  <td>
-                    <div className="t-name">{c.name}</div>
-                    <div className="t-sub">{c.sub}</div>
-                  </td>
-                  <td><Badge variant={c.status} pulse={c.status === 'sending'}>{c.status.charAt(0).toUpperCase() + c.status.slice(1)}</Badge></td>
-                  <td className="hide-sm t-mute">{c.seg}</td>
-                  <td className="hide-sm t-mono">{c.rec}</td>
-                  <td><RateBar value={c.open} /></td>
-                  <td><RateBar value={c.click} coral /></td>
-                  <td className="hide-sm t-mute">{c.date}</td>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--slate-3)', fontFamily: 'var(--mono)', fontSize: 13 }}>
+              No {activeTab} campaigns
+            </div>
+          ) : (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Campaign</th>
+                  <th>Status</th>
+                  <th className="hide-sm">Segment</th>
+                  <th className="hide-sm">Recipients</th>
+                  <th>Open rate</th>
+                  <th>Click rate</th>
+                  <th className="hide-sm">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr key={c.id} onClick={() => navigate(`/campaigns/${c.id}`)}>
+                    <td>
+                      <div className="t-name">{c.name}</div>
+                      <div className="t-sub">{c.sub}</div>
+                    </td>
+                    <td><Badge variant={c.status} pulse={c.status === 'sending'}>{c.status.charAt(0).toUpperCase() + c.status.slice(1)}</Badge></td>
+                    <td className="hide-sm t-mute">{c.seg}</td>
+                    <td className="hide-sm t-mono">{c.rec}</td>
+                    <td><RateBar value={c.open} /></td>
+                    <td><RateBar value={c.click} coral /></td>
+                    <td className="hide-sm t-mute">{c.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
       </div>
