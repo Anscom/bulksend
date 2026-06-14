@@ -16,7 +16,9 @@ COPY --from=deps /app/packages/logger/node_modules ./packages/logger/node_module
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY . .
 RUN cd apps/api && npx prisma generate
-RUN pnpm turbo build --filter=@bulksend/api
+RUN pnpm --filter=@bulksend/logger run build
+RUN pnpm --filter=@bulksend/shared run build
+RUN pnpm --filter=@bulksend/api run build
 
 FROM node:20-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
