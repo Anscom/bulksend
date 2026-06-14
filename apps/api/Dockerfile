@@ -2,13 +2,6 @@ FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
-FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/logger/package.json ./packages/logger/
-COPY apps/api/package.json ./apps/api/
-RUN pnpm install --frozen-lockfile --ignore-scripts
-
 FROM base AS build
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
@@ -32,12 +25,9 @@ COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/package.json ./packages/shared/
 COPY --from=build /app/packages/logger/dist ./packages/logger/dist
 COPY --from=build /app/packages/logger/package.json ./packages/logger/
-COPY --from=deps  /app/node_modules ./node_modules
-RUN mkdir -p node_modules/@bulksend apps/api/node_modules/@bulksend && \
-    ln -s /app/packages/shared node_modules/@bulksend/shared && \
-    ln -s /app/packages/logger node_modules/@bulksend/logger && \
-    ln -s /app/packages/shared apps/api/node_modules/@bulksend/shared && \
-    ln -s /app/packages/logger apps/api/node_modules/@bulksend/logger
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/packages/logger/node_modules ./packages/logger/node_modules
 
 EXPOSE 3001
 CMD ["node", "apps/api/dist/server.js"]
