@@ -33,7 +33,7 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const contact = await svc.getContact(req.params['id']!, req.user!.workspaceId);
+    const contact = await svc.getContact(req.params['id'] as string, req.user!.workspaceId);
     res.json({ ok: true, data: contact });
   } catch (err) { next(err); }
 });
@@ -47,14 +47,14 @@ router.post('/', validate('body', CreateSchema), async (req, res, next) => {
 
 router.patch('/:id', validate('body', CreateSchema.partial()), async (req, res, next) => {
   try {
-    const contact = await svc.updateContact(req.params['id']!, req.user!.workspaceId, req.body);
+    const contact = await svc.updateContact(req.params['id'] as string, req.user!.workspaceId, req.body);
     res.json({ ok: true, data: contact });
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    await svc.deleteContact(req.params['id']!, req.user!.workspaceId);
+    await svc.deleteContact(req.params['id'] as string, req.user!.workspaceId);
     res.status(204).send();
   } catch (err) { next(err); }
 });

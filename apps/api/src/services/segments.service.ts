@@ -46,7 +46,7 @@ export async function updateSegment(
     where: { id },
     data: {
       ...(data.name ? { name: data.name } : {}),
-      ...(data.filters ? { filters: data.filters as never, contactCount: count } : {}),
+      ...(data.filters ? { filters: data.filters as never, contactCount: count as number } : {}),
     },
   });
   return updated as unknown as Segment;

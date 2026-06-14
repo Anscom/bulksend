@@ -3,11 +3,13 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "paths": {
-      "@bulksend/shared": ["../../packages/shared/src/index.ts"],
-      "@bulksend/logger": ["../../packages/logger/src/index.ts"]
-    }
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/logger" }
+  ]
 }

@@ -10,7 +10,7 @@ export async function createNotification(
   metadata: Record<string, unknown> = {},
 ): Promise<void> {
   await prisma.notification.create({
-    data: { workspaceId, type, title, body, metadata },
+    data: { workspaceId, type, title, body, metadata: metadata as object },
   });
 }
 

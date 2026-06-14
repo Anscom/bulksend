@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/authenticate.js';
 import { tenant } from '../middleware/tenant.js';
@@ -28,8 +28,8 @@ const AddMemberSchema = z.object({
   role: z.enum(['member', 'admin']).default('member'),
 });
 
-function ownWorkspace(req: Parameters<Parameters<typeof router.use>[0]>[0]) {
-  return req.params['id'] === req.user!.workspaceId;
+function ownWorkspace(req: Request) {
+  return (req.params['id'] as string) === req.user!.workspaceId;
 }
 
 router.get('/mine', async (req, res, next) => {
@@ -84,7 +84,7 @@ router.delete('/:id/members/:userId', async (req, res, next) => {
   try {
     if (!ownWorkspace(req)) { next(Errors.forbidden()); return; }
     if (req.user!.role !== 'owner') { next(Errors.forbidden()); return; }
-    await svc.removeMember(req.user!.workspaceId, req.params['userId']!, req.user!.userId);
+    await svc.removeMember(req.user!.workspaceId, req.params['userId'] as string, req.user!.userId);
     res.status(204).send();
   } catch (err) { next(err); }
 });

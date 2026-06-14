@@ -16,7 +16,7 @@ export async function listContacts(
   const where = {
     workspaceId,
     deletedAt: null,
-    ...(status ? { status } : {}),
+    ...(status ? { status: status as never } : {}),
     ...(search ? { OR: [{ email: { contains: search } }, { firstName: { contains: search } }] } : {}),
   };
   const [items, total] = await Promise.all([
@@ -40,7 +40,7 @@ export async function createContact(
   if (existing) throw Errors.conflict('Contact with this email already exists');
 
   const contact = await prisma.contact.create({
-    data: { ...data, workspaceId, status: 'subscribed', attributes: data.attributes ?? {} },
+    data: { ...data, workspaceId, status: 'subscribed', attributes: (data.attributes ?? {}) as object },
   });
   return contact as unknown as Contact;
 }
@@ -53,15 +53,25 @@ export async function updateContact(
   const contact = await prisma.contact.findFirst({ where: { id, workspaceId, deletedAt: null } });
   if (!contact) throw Errors.notFound('Contact');
 
-  const updated = await prisma.contact.update({ where: { id }, data });
+  const dataAny = data as Record<string, unknown>;
+  const updated = await prisma.contact.update({
+    where: { id },
+    data: {
+      ...(dataAny['email'] !== undefined ? { email: dataAny['email'] as string } : {}),
+      ...(dataAny['firstName'] !== undefined ? { firstName: dataAny['firstName'] as string } : {}),
+      ...(dataAny['lastName'] !== undefined ? { lastName: dataAny['lastName'] as string } : {}),
+      ...(dataAny['attributes'] !== undefined ? { attributes: dataAny['attributes'] as object } : {}),
+      ...(dataAny['status'] !== undefined ? { status: dataAny['status'] as never } : {}),
+    },
+  });
 
   // Sync suppression cache when unsubscribing
-  if (data.status === 'unsubscribed') {
+  if ((dataAny['status'] as string | undefined) === 'unsubscribed') {
     await redis.sadd(suppKey(workspaceId), contact.email);
   }
 
   // Refresh segment counts if status changed (subscribed ↔ unsubscribed/bounced affects counts)
-  const newStatus = (data as Record<string, unknown>)['status'];
+  const newStatus = dataAny['status'];
   if (newStatus !== undefined && newStatus !== contact.status) {
     refreshSegmentCounts(workspaceId).catch(() => {});
   }
@@ -101,8 +111,8 @@ export async function importContacts(
         attributes: {},
       },
       update: {
-        firstName: mapping['firstName'] ? row[mapping['firstName']] ?? undefined : undefined,
-        lastName: mapping['lastName'] ? row[mapping['lastName']] ?? undefined : undefined,
+        ...(mapping['firstName'] ? { firstName: row[mapping['firstName']] ?? null } : {}),
+        ...(mapping['lastName'] ? { lastName: row[mapping['lastName']] ?? null } : {}),
       },
     });
     imported++;

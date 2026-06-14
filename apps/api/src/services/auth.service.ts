@@ -100,7 +100,7 @@ export async function refresh(refreshToken: string): Promise<AuthTokens> {
   if (!sessionRaw || !sessionRaw['userId']) throw Errors.unauthorized();
 
   const hashedToken = await bcrypt.hash(refreshToken, 4);
-  const stored = sessionRaw['rtHash'];
+  const stored = sessionRaw['rtHash'] as string | undefined;
   if (stored && !(await bcrypt.compare(refreshToken, stored))) {
     // Refresh token reuse detected — revoke entire session
     await redis.del(sessKey(payload.sid));
@@ -131,11 +131,11 @@ function issueTokens(
   const sid = existingSid ?? uuidv4();
 
   const accessToken = jwt.sign({ userId, workspaceId, email, role, jti }, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: env.JWT_EXPIRES_IN as `${number}${'s' | 'm' | 'h' | 'd'}`,
   });
 
   const refreshToken = jwt.sign({ userId, workspaceId, email, role, sid }, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN as `${number}${'s' | 'm' | 'h' | 'd'}`,
   });
 
   // Store session in Redis

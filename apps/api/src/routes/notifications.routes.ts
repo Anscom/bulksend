@@ -23,7 +23,7 @@ router.post('/read-all', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    await svc.deleteNotification(req.params['id']!, req.user!.workspaceId);
+    await svc.deleteNotification(req.params['id'] as string, req.user!.workspaceId);
     res.status(204).send();
   } catch (err) { next(err); }
 });

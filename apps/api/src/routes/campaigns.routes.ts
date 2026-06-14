@@ -36,14 +36,14 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const campaign = await svc.getCampaign(req.params['id']!, req.user!.workspaceId);
+    const campaign = await svc.getCampaign(req.params['id'] as string, req.user!.workspaceId);
     res.json({ ok: true, data: campaign });
   } catch (err) { next(err); }
 });
 
 router.get('/:id/stats', async (req, res, next) => {
   try {
-    const stats = await svc.getCampaignStats(req.params['id']!, req.user!.workspaceId);
+    const stats = await svc.getCampaignStats(req.params['id'] as string, req.user!.workspaceId);
     res.json({ ok: true, data: stats });
   } catch (err) { next(err); }
 });
@@ -52,7 +52,7 @@ router.get('/:id/sends', async (req, res, next) => {
   try {
     const page = Number(req.query['page']) || 1;
     const pageSize = Math.min(500, Number(req.query['pageSize']) || 200);
-    const result = await svc.getCampaignSends(req.params['id']!, req.user!.workspaceId, page, pageSize);
+    const result = await svc.getCampaignSends(req.params['id'] as string, req.user!.workspaceId, page, pageSize);
     res.json({ ok: true, data: result });
   } catch (err) { next(err); }
 });
@@ -66,14 +66,14 @@ router.post('/', validate('body', CreateSchema), async (req, res, next) => {
 
 router.patch('/:id', validate('body', CreateSchema.partial()), async (req, res, next) => {
   try {
-    const campaign = await svc.updateCampaign(req.params['id']!, req.user!.workspaceId, req.body);
+    const campaign = await svc.updateCampaign(req.params['id'] as string, req.user!.workspaceId, req.body);
     res.json({ ok: true, data: campaign });
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    await svc.deleteCampaign(req.params['id']!, req.user!.workspaceId);
+    await svc.deleteCampaign(req.params['id'] as string, req.user!.workspaceId);
     res.status(204).send();
   } catch (err) { next(err); }
 });
@@ -81,14 +81,14 @@ router.delete('/:id', async (req, res, next) => {
 router.post('/:id/schedule', validate('body', ScheduleSchema), async (req, res, next) => {
   try {
     const { scheduledAt } = req.body as z.infer<typeof ScheduleSchema>;
-    const campaign = await svc.scheduleCampaign(req.params['id']!, req.user!.workspaceId, new Date(scheduledAt));
+    const campaign = await svc.scheduleCampaign(req.params['id'] as string, req.user!.workspaceId, new Date(scheduledAt));
     res.json({ ok: true, data: campaign });
   } catch (err) { next(err); }
 });
 
 router.post('/:id/pause', async (req, res, next) => {
   try {
-    const campaign = await svc.pauseCampaign(req.params['id']!, req.user!.workspaceId);
+    const campaign = await svc.pauseCampaign(req.params['id'] as string, req.user!.workspaceId);
     res.json({ ok: true, data: campaign });
   } catch (err) { next(err); }
 });
@@ -96,7 +96,7 @@ router.post('/:id/pause', async (req, res, next) => {
 router.post('/:id/resume', async (req, res, next) => {
   try {
     const idempotencyKey = req.headers['idempotency-key'] as string ?? `${req.params['id']}-resume-${Date.now()}`;
-    const campaign = await svc.resumeCampaign(req.params['id']!, req.user!.workspaceId, idempotencyKey);
+    const campaign = await svc.resumeCampaign(req.params['id'] as string, req.user!.workspaceId, idempotencyKey);
     res.json({ ok: true, data: campaign });
   } catch (err) { next(err); }
 });
@@ -104,7 +104,7 @@ router.post('/:id/resume', async (req, res, next) => {
 router.post('/:id/send', rateLimit, async (req, res, next) => {
   try {
     const idempotencyKey = req.headers['idempotency-key'] as string ?? `${req.params['id']}-${Date.now()}`;
-    const campaign = await svc.sendCampaign(req.params['id']!, req.user!.workspaceId, idempotencyKey);
+    const campaign = await svc.sendCampaign(req.params['id'] as string, req.user!.workspaceId, idempotencyKey);
     res.status(202).json({ ok: true, data: campaign });
   } catch (err) { next(err); }
 });
