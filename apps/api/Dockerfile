@@ -15,12 +15,6 @@ COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_module
 COPY --from=deps /app/packages/logger/node_modules ./packages/logger/node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY . .
-# pnpm workspace symlinks use relative paths that may not resolve correctly in Docker.
-# Re-create them as absolute symlinks so TypeScript and Node can always find the packages.
-RUN rm -rf apps/api/node_modules/@bulksend && \
-    mkdir -p apps/api/node_modules/@bulksend && \
-    ln -s /app/packages/shared apps/api/node_modules/@bulksend/shared && \
-    ln -s /app/packages/logger apps/api/node_modules/@bulksend/logger
 RUN cd apps/api && npx prisma generate
 RUN pnpm --filter=@bulksend/logger run build
 RUN pnpm --filter=@bulksend/shared run build

@@ -15,11 +15,6 @@ COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_module
 COPY --from=deps /app/packages/logger/node_modules ./packages/logger/node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY . .
-# Re-create workspace symlinks as absolute paths for reliable resolution in Docker
-RUN rm -rf apps/worker/node_modules/@bulksend && \
-    mkdir -p apps/worker/node_modules/@bulksend && \
-    ln -s /app/packages/shared apps/worker/node_modules/@bulksend/shared && \
-    ln -s /app/packages/logger apps/worker/node_modules/@bulksend/logger
 RUN cd apps/worker && npx prisma generate
 RUN pnpm --filter=@bulksend/logger run build
 RUN pnpm --filter=@bulksend/shared run build
