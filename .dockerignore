@@ -1,5 +1,6 @@
 .git
 **/.turbo
+**/.pnpm-store
 **/node_modules
 **/.next
 **/dist

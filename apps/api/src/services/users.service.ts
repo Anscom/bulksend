@@ -7,7 +7,7 @@ const USER_SELECT = {
 } as const;
 
 const WORKSPACE_SELECT = {
-  id: true, name: true, slug: true, plan: true, sendRatePerHour: true, createdAt: true, updatedAt: true,
+  id: true, name: true, slug: true, plan: true, sendRatePerHour: true, brevoApiKey: true, senderEmail: true, senderName: true, createdAt: true, updatedAt: true,
 } as const;
 
 export async function getProfile(userId: string, workspaceId: string) {

@@ -1,7 +1,7 @@
 import { prisma } from '../db/client.js';
-import { getProducer } from '../kafka/producer.js';
-import { Topics } from '../kafka/topics.js';
 import { Errors } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
+import { runDispatch } from './dispatch.service.js';
 import type {
   Campaign,
   CreateCampaignRequest,
@@ -94,7 +94,7 @@ export async function scheduleCampaign(
 export async function sendCampaign(
   id: string,
   workspaceId: string,
-  idempotencyKey: string,
+  _idempotencyKey: string,
 ): Promise<Campaign> {
   const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
   if (!campaign) throw Errors.notFound('Campaign');
@@ -107,16 +107,10 @@ export async function sendCampaign(
     data: { status: 'sending' },
   });
 
-  const producer = await getProducer();
-  await producer.send({
-    topic: Topics.CAMPAIGN_DISPATCH,
-    messages: [
-      {
-        key: id,
-        value: JSON.stringify({ campaignId: id, workspaceId, dispatchedAt: new Date().toISOString() }),
-        headers: { 'idempotency-key': idempotencyKey },
-      },
-    ],
+  setImmediate(() => {
+    runDispatch(id, workspaceId).catch((err) => {
+      logger.error({ err, campaignId: id }, 'Background dispatch failed');
+    });
   });
 
   return updated as unknown as Campaign;
@@ -133,7 +127,7 @@ export async function pauseCampaign(id: string, workspaceId: string): Promise<Ca
 export async function resumeCampaign(
   id: string,
   workspaceId: string,
-  idempotencyKey: string,
+  _idempotencyKey: string,
 ): Promise<Campaign> {
   const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
   if (!campaign) throw Errors.notFound('Campaign');
@@ -141,14 +135,10 @@ export async function resumeCampaign(
 
   const updated = await prisma.campaign.update({ where: { id }, data: { status: 'sending' } });
 
-  const producer = await getProducer();
-  await producer.send({
-    topic: Topics.CAMPAIGN_DISPATCH,
-    messages: [{
-      key: id,
-      value: JSON.stringify({ campaignId: id, workspaceId, dispatchedAt: new Date().toISOString() }),
-      headers: { 'idempotency-key': idempotencyKey },
-    }],
+  setImmediate(() => {
+    runDispatch(id, workspaceId).catch((err) => {
+      logger.error({ err, campaignId: id }, 'Background dispatch failed');
+    });
   });
 
   return updated as unknown as Campaign;

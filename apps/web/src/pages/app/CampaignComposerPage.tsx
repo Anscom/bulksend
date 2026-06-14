@@ -1296,6 +1296,16 @@ export function CampaignComposerPage() {
     subject: resendFrom?.subject ?? '',
     body: resendFrom?.bodyHtml ?? '',
   });
+
+  // Once workspace loads (async via /me), backfill sender fields if still empty
+  useEffect(() => {
+    if (!workspace || resendFrom) return;
+    setForm(f => ({
+      ...f,
+      fromName: f.fromName || workspace.senderName || '',
+      fromEmail: f.fromEmail || workspace.senderEmail || '',
+    }));
+  }, [workspace?.id]);
   const [selectedSegId, setSelectedSegId] = useState<string>('');
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
   const [scheduledAt, setScheduledAt] = useState('');
@@ -1508,11 +1518,35 @@ export function CampaignComposerPage() {
                     <div className="field-row">
                       <div className="field">
                         <label>From name</label>
-                        <input className="inp" placeholder="Acme Team" value={form.fromName} onChange={e => update('fromName', e.target.value)} />
+                        <input
+                          className="inp"
+                          placeholder="Acme Team"
+                          value={form.fromName}
+                          onChange={e => update('fromName', e.target.value)}
+                          readOnly={!!workspace?.senderName}
+                          style={workspace?.senderName ? { background: 'var(--bg)', cursor: 'not-allowed', color: 'var(--ink-2)' } : undefined}
+                          title={workspace?.senderName ? 'Set in Settings → Default sender' : undefined}
+                        />
                       </div>
                       <div className="field">
-                        <label>From email</label>
-                        <input className="inp" type="email" placeholder="hello@yourdomain.com" value={form.fromEmail} onChange={e => update('fromEmail', e.target.value)} />
+                        <label>
+                          From email
+                          {workspace?.senderEmail && (
+                            <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--green, #16a34a)', fontWeight: 400 }}>
+                              locked to default sender
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          className="inp"
+                          type="email"
+                          placeholder="hello@yourdomain.com"
+                          value={form.fromEmail}
+                          onChange={e => update('fromEmail', e.target.value)}
+                          readOnly={!!workspace?.senderEmail}
+                          style={workspace?.senderEmail ? { background: 'var(--bg)', cursor: 'not-allowed', color: 'var(--ink-2)' } : undefined}
+                          title={workspace?.senderEmail ? 'Set in Settings → Default sender' : undefined}
+                        />
                       </div>
                     </div>
                     <div className="field">

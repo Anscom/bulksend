@@ -55,8 +55,8 @@ async function main() {
 
   logger.info('All consumers running');
 
-  // Health check server — keeps Render free web service alive (no spin-down)
-  const port = process.env['PORT'] ?? 3002;
+  // Health check server — uses WORKER_PORT to avoid conflicting with the API's PORT=3001
+  const port = process.env['WORKER_PORT'] ?? process.env['PORT'] ?? 3002;
   const healthServer = http.createServer((_req, res) => {
     res.writeHead(200).end(JSON.stringify({ ok: true, service: 'worker' }));
   });

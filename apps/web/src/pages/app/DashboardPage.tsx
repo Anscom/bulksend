@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, Link } from 'react-router-dom';
 import { Topbar } from '../../components/layout/Topbar.js';
 import { KPICard } from '../../components/charts/KPICard.js';
 import { VolumeChart } from '../../components/charts/VolumeChart.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { analyticsApi } from '../../lib/api/analytics.js';
 import { campaignsApi } from '../../lib/api/campaigns.js';
+import { contactsApi } from '../../lib/api/contacts.js';
+import { segmentsApi } from '../../lib/api/segments.js';
+import { useWorkspaceStore } from '../../stores/workspace.store.js';
 import type { AnalyticsOverview, VolumePoint, Campaign } from '@bulksend/shared';
 
 function fmt(n: number): string {
@@ -41,23 +44,145 @@ function campaignDate(c: Campaign): string {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function OnboardingChecklist({ brevoReady, senderReady, hasContacts, hasSegments, hasCampaigns }: {
+  brevoReady: boolean; senderReady: boolean; hasContacts: boolean; hasSegments: boolean; hasCampaigns: boolean;
+}) {
+  const steps = [
+    {
+      title: 'Connect Brevo',
+      desc: 'Create a free Brevo account, generate an API key, and set your sender email in Settings.',
+      done: brevoReady && senderReady,
+      partialNote: !brevoReady ? 'API key missing' : !senderReady ? 'Sender email missing' : undefined,
+      cta: 'Go to Settings',
+      to: '/settings',
+    },
+    {
+      title: 'Import or add contacts',
+      desc: 'Upload a CSV file or add contacts manually. Contacts are the people you\'ll be emailing.',
+      done: hasContacts,
+      cta: 'Go to Contacts',
+      to: '/contacts',
+    },
+    {
+      title: 'Create a segment',
+      desc: 'Segments let you filter contacts by attributes (e.g. location, tags) so you can target the right audience.',
+      done: hasSegments,
+      cta: 'Go to Segments',
+      to: '/segments',
+    },
+    {
+      title: 'Send your first campaign',
+      desc: 'Compose an email, pick a segment, and hit send. Your campaign will be delivered via Brevo.',
+      done: hasCampaigns,
+      cta: 'Create campaign',
+      to: '/campaigns/new',
+    },
+  ];
+
+  const completedCount = steps.filter(s => s.done).length;
+  if (completedCount === steps.length) return null;
+
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--r)',
+      padding: '24px 28px',
+      marginBottom: 28,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>Get started with BulkSend</h2>
+          <div style={{ fontSize: 13, color: 'var(--slate)' }}>{completedCount} of {steps.length} steps complete</div>
+        </div>
+        <div style={{
+          height: 6, width: 120, borderRadius: 99,
+          background: 'var(--border)', overflow: 'hidden', flexShrink: 0,
+        }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            background: 'var(--indigo)',
+            width: `${(completedCount / steps.length) * 100}%`,
+            transition: 'width 0.3s ease',
+          }} />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {steps.map((step, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 14,
+            padding: '14px 16px',
+            borderRadius: 'var(--r)',
+            background: step.done ? 'transparent' : 'var(--surface-raised, rgba(99,102,241,0.04))',
+            border: `1px solid ${step.done ? 'var(--border)' : 'var(--indigo-tint2, rgba(99,102,241,0.15))'}`,
+            opacity: step.done ? 0.55 : 1,
+          }}>
+            <div style={{
+              flexShrink: 0, width: 26, height: 26, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: step.done ? 'var(--green, #16a34a)' : 'var(--indigo)',
+              color: '#fff', fontSize: 12, fontWeight: 700,
+            }}>
+              {step.done
+                ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                : i + 1
+              }
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{step.title}</span>
+                {step.partialNote && (
+                  <span style={{ fontSize: 11, color: 'var(--amber, #d97706)', background: 'var(--amber-tint, #fef3c7)', padding: '2px 7px', borderRadius: 99, fontWeight: 600 }}>
+                    {step.partialNote}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--slate)', lineHeight: 1.5 }}>{step.desc}</div>
+            </div>
+            {!step.done && (
+              <Link to={step.to} style={{
+                flexShrink: 0, fontSize: 12, fontWeight: 600,
+                color: 'var(--indigo)', textDecoration: 'none',
+                padding: '6px 12px',
+                border: '1px solid var(--indigo)',
+                borderRadius: 'var(--r)',
+                whiteSpace: 'nowrap',
+              }}>
+                {step.cta} →
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { onMenuOpen } = useOutletContext<{ onMenuOpen: () => void }>();
+  const workspace = useWorkspaceStore(s => s.workspace);
 
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [volume, setVolume] = useState<VolumePoint[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [contactsTotal, setContactsTotal] = useState(0);
+  const [segmentsTotal, setSegmentsTotal] = useState(0);
 
   useEffect(() => {
     Promise.all([
       analyticsApi.getOverview(),
       analyticsApi.getVolume(30),
       campaignsApi.list(1, 5),
-    ]).then(([ov, vol, clist]) => {
+      contactsApi.list(1, 1),
+      segmentsApi.list(1, 1),
+    ]).then(([ov, vol, clist, contacts, segments]) => {
       setOverview(ov);
       setVolume(vol);
       setCampaigns(clist.items);
+      setContactsTotal(contacts.total);
+      setSegmentsTotal(segments.total);
     }).catch(() => {
       // leave loading=false so the page renders empty rather than spinning forever
     }).finally(() => setLoading(false));
@@ -79,6 +204,16 @@ export function DashboardPage() {
     <div className="view active">
       <Topbar crumb="Dashboard" title="Dashboard" onMenuOpen={onMenuOpen} />
       <div style={{ padding: '28px 24px 60px', maxWidth: 1240, margin: '0 auto' }}>
+
+        {!loading && workspace?.plan === 'free' && (
+          <OnboardingChecklist
+            brevoReady={!!workspace.brevoApiKey}
+            senderReady={!!workspace.senderEmail}
+            hasContacts={contactsTotal > 0}
+            hasSegments={segmentsTotal > 0}
+            hasCampaigns={campaigns.length > 0}
+          />
+        )}
 
         <div className="kpi-grid">
           {loading || !kpiData

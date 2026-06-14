@@ -22,17 +22,29 @@ export async function signup(
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const workspace = await prisma.workspace.create({
-    data: {
-      name: workspaceName,
-      slug: workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      plan: 'free',
-      sendRatePerHour: 100,
-    },
-  });
+  const [workspace, user] = await prisma.$transaction(async (tx) => {
+    const ws = await tx.workspace.create({
+      data: {
+        name: workspaceName,
+        slug: workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        plan: 'free',
+        sendRatePerHour: 100,
+      },
+    });
 
-  const user = await prisma.user.create({
-    data: { email, name, passwordHash, workspaceId: workspace.id, role: 'owner' },
+    await tx.segment.create({
+      data: {
+        workspaceId: ws.id,
+        name: 'Active Subscribers',
+        filters: [{ field: 'status', operator: 'eq', value: 'subscribed' }],
+      },
+    });
+
+    const u = await tx.user.create({
+      data: { email, name, passwordHash, workspaceId: ws.id, role: 'owner' },
+    });
+
+    return [ws, u] as const;
   });
 
   return issueTokens(user.id, workspace.id, user.email, user.role);
@@ -46,6 +58,21 @@ export async function login(email: string, password: string): Promise<LoginRespo
   if (!valid) throw Errors.unauthorized();
 
   const tokens = issueTokens(user.id, user.workspaceId, user.email, user.role);
+
+  // Ensure the default "Active Subscribers" segment exists for this workspace
+  const existing = await prisma.segment.findFirst({
+    where: { workspaceId: user.workspaceId, name: 'Active Subscribers' },
+    select: { id: true },
+  });
+  if (!existing) {
+    await prisma.segment.create({
+      data: {
+        workspaceId: user.workspaceId,
+        name: 'Active Subscribers',
+        filters: [{ field: 'status', operator: 'eq', value: 'subscribed' }],
+      },
+    }).catch(() => {}); // ignore race condition if another login created it simultaneously
+  }
 
   // Collect all workspaces: primary + any granted via WorkspaceAccess
   const [primaryWs, accesses] = await Promise.all([
