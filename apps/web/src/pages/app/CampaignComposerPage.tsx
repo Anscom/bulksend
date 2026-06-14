@@ -1,17 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { Topbar } from '../../components/layout/Topbar.js';
 import { resolveMergeTags } from '../../lib/utils/merge-tags.js';
 import { EMAIL_TEMPLATES, type EmailTemplate } from '../../data/email-templates.js';
+import { campaignsApi } from '../../lib/api/campaigns.js';
+import { segmentsApi } from '../../lib/api/segments.js';
+import { useWorkspaceStore } from '../../stores/workspace.store.js';
+import type { Campaign, Contact } from '@bulksend/shared';
 
 type Step = 1 | 2 | 3 | 4;
 
-const SEGMENTS = [
-  { id: 's1', name: 'Active subscribers', desc: 'Subscribed and never bounced', count: 46980 },
-  { id: 's2', name: 'All contacts', desc: 'Every contact in your workspace', count: 48210 },
-  { id: 's3', name: 'Pro & Enterprise', desc: 'Contacts tagged Pro or Enterprise', count: 12440 },
-  { id: 's4', name: 'New signups', desc: 'Added in the last 30 days', count: 3180 },
-];
+type SegmentOption = { id: string; name: string; desc: string; count: number };
 
 const PRESET_COLORS = [
   '#000000', '#374151', '#6b7280', '#9ca3af', '#d1d5db',
@@ -499,6 +498,9 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
   const [showInsertMenu,  setShowInsertMenu]  = useState(false);
   const [colorHexInput,   setColorHexInput]   = useState('#dc2626');
   const [hlHexInput,      setHlHexInput]      = useState('#fef08a');
+  const [showHeadingMenu, setShowHeadingMenu] = useState(false);
+  const [showFontMenu,    setShowFontMenu]    = useState(false);
+  const [currentBlock,    setCurrentBlock]    = useState('p');
 
   useEffect(() => {
     if (editorRef.current) {
@@ -515,6 +517,13 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
       underline:     document.queryCommandState('underline'),
       strikeThrough: document.queryCommandState('strikeThrough'),
     });
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      let node: Node | null = sel.getRangeAt(0).startContainer;
+      while (node && node.nodeType !== Node.ELEMENT_NODE) node = node.parentNode;
+      const tag = node ? (node as Element).tagName?.toLowerCase() : '';
+      setCurrentBlock(['h1','h2','h3'].includes(tag) ? tag : 'p');
+    }
   }, []);
 
   const exec = useCallback((cmd: string, val?: string) => {
@@ -617,7 +626,7 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
   }, [restoreRange, linkUrl, onChange]);
 
   // Insert styled block
-  const insertBlock = useCallback((type: 'steps' | 'callout' | 'quote' | 'cta' | 'divider') => {
+  const insertBlock = useCallback((type: 'steps' | 'callout' | 'quote' | 'cta' | 'divider' | 'spacer' | 'twocol' | 'social' | 'product' | 'signature') => {
     editorRef.current?.focus();
     setShowInsertMenu(false);
     const html: Record<string, string> = {
@@ -638,6 +647,39 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
       quote: `<blockquote style="border-left:4px solid #4f46e5;margin:16px 0;padding:12px 20px;background:#f5f3ff;border-radius:0 6px 6px 0;"><p style="margin:0;font-style:italic;color:#3730a3;font-size:15px;">"Your inspirational quote goes here."</p><footer style="margin-top:8px;font-size:13px;color:#6b7280;">— Author name</footer></blockquote>`,
       cta: `<div style="text-align:center;margin:24px 0;"><a href="#" style="display:inline-block;background:#4f46e5;color:#fff;font-weight:600;font-size:15px;padding:12px 32px;border-radius:8px;text-decoration:none;">Click here to get started →</a></div>`,
       divider: `<hr style="border:none;border-top:2px solid #e5e7eb;margin:24px 0;">`,
+      spacer: `<div style="display:block;height:40px;line-height:40px;">&nbsp;</div>`,
+      twocol: `<table style="width:100%;border-collapse:collapse;margin:16px 0;" cellpadding="0" cellspacing="0"><tr>
+  <td style="width:50%;padding:0 16px 0 0;vertical-align:top;"><strong style="font-size:15px;color:#111827;">Column One</strong><p style="color:#6b7280;font-size:14px;margin:8px 0 0;line-height:1.6;">Add your content here. Describe your feature or benefit in a few words.</p></td>
+  <td style="width:50%;padding:0 0 0 16px;vertical-align:top;border-left:1px solid #e5e7eb;"><strong style="font-size:15px;color:#111827;">Column Two</strong><p style="color:#6b7280;font-size:14px;margin:8px 0 0;line-height:1.6;">Add your content here. Describe your feature or benefit in a few words.</p></td>
+</tr></table>`,
+      social: `<div style="text-align:center;margin:24px 0;padding:20px;background:#f9fafb;border-radius:8px;">
+  <p style="margin:0 0 14px;font-size:13px;color:#6b7280;font-family:Arial,sans-serif;">Follow us on social media</p>
+  <a href="#" style="display:inline-block;margin:0 8px;background:#1d9bf0;color:#fff;font-family:Arial,sans-serif;font-size:12px;font-weight:600;padding:7px 16px;border-radius:20px;text-decoration:none;">Twitter</a>
+  <a href="#" style="display:inline-block;margin:0 8px;background:#0a66c2;color:#fff;font-family:Arial,sans-serif;font-size:12px;font-weight:600;padding:7px 16px;border-radius:20px;text-decoration:none;">LinkedIn</a>
+  <a href="#" style="display:inline-block;margin:0 8px;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;font-family:Arial,sans-serif;font-size:12px;font-weight:600;padding:7px 16px;border-radius:20px;text-decoration:none;">Instagram</a>
+</div>`,
+      product: `<table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:16px 0;" cellpadding="0" cellspacing="0">
+  <tr>
+    <td style="background:#f3f4f6;padding:24px;text-align:center;width:38%;">
+      <div style="width:96px;height:96px;background:#e5e7eb;border-radius:10px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:36px;line-height:96px;">🖼</div>
+    </td>
+    <td style="padding:22px 24px;vertical-align:middle;">
+      <div style="font-weight:700;font-size:17px;color:#111827;margin-bottom:6px;font-family:Arial,sans-serif;">Product Name</div>
+      <div style="color:#6b7280;font-size:14px;margin-bottom:14px;line-height:1.6;font-family:Arial,sans-serif;">Short product description highlighting the key benefit in one or two clear sentences.</div>
+      <div style="font-weight:800;font-size:22px;color:#111827;margin-bottom:16px;font-family:Arial,sans-serif;">$99.00</div>
+      <a href="#" style="display:inline-block;background:#4f46e5;color:#fff;font-weight:600;font-size:14px;padding:10px 24px;border-radius:7px;text-decoration:none;font-family:Arial,sans-serif;">Shop now →</a>
+    </td>
+  </tr>
+</table>`,
+      signature: `<div style="margin-top:36px;padding-top:18px;border-top:1px solid #e5e7eb;font-family:Arial,sans-serif;">
+  <div style="font-weight:700;font-size:15px;color:#111827;">Your Name</div>
+  <div style="color:#6b7280;font-size:13px;margin-top:3px;">Title &middot; Company Name</div>
+  <div style="margin-top:10px;font-size:13px;color:#6b7280;">
+    <a href="mailto:you@company.com" style="color:#4f46e5;text-decoration:none;">you@company.com</a>
+    &nbsp;&middot;&nbsp;
+    <a href="#" style="color:#4f46e5;text-decoration:none;">yourwebsite.com</a>
+  </div>
+</div>`,
     };
     document.execCommand('insertHTML', false, html[type]);
     onChange(editorRef.current?.innerHTML ?? '');
@@ -645,17 +687,20 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
 
   // Close popover on outside click
   useEffect(() => {
-    if (!showColors && !showHighlights && !showInsertMenu) return;
+    if (!showColors && !showHighlights && !showInsertMenu && !showHeadingMenu && !showFontMenu) return;
     const close = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.cp-wrap') && !(e.target as HTMLElement).closest('.insert-menu-wrap')) {
+      const t = e.target as HTMLElement;
+      if (!t.closest('.cp-wrap') && !t.closest('.insert-menu-wrap') && !t.closest('.heading-wrap') && !t.closest('.fs-wrap')) {
         setShowColors(false);
         setShowHighlights(false);
         setShowInsertMenu(false);
+        setShowHeadingMenu(false);
+        setShowFontMenu(false);
       }
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
-  }, [showColors, showHighlights, showInsertMenu]);
+  }, [showColors, showHighlights, showInsertMenu, showHeadingMenu, showFontMenu]);
 
   const Btn = ({ active, title, onMD, children }: {
     active?: boolean; title: string;
@@ -670,6 +715,49 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
   return (
     <>
       <div className="toolbar">
+
+        {/* ── Heading / paragraph style ── */}
+        <div className="heading-wrap">
+          <button type="button" className="tb-btn tb-heading-btn" title="Paragraph style"
+            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); if (!showHeadingMenu) saveRange(); setShowHeadingMenu(s => !s); setShowColors(false); setShowHighlights(false); setShowInsertMenu(false); setShowFontMenu(false); }}>
+            <span>{currentBlock === 'h1' ? 'H1' : currentBlock === 'h2' ? 'H2' : currentBlock === 'h3' ? 'H3' : 'P'}</span>
+            <svg width="7" height="5" viewBox="0 0 10 7" fill="currentColor"><path d="M0 0l5 7 5-7z"/></svg>
+          </button>
+          {showHeadingMenu && (
+            <div className="heading-menu">
+              {([
+                { tag: 'p',  label: 'Normal text' },
+                { tag: 'h1', label: 'Heading 1' },
+                { tag: 'h2', label: 'Heading 2' },
+                { tag: 'h3', label: 'Heading 3' },
+              ] as const).map(({ tag, label }) => (
+                <button key={tag} className={`hm-item hm-${tag}${currentBlock === tag ? ' hm-active' : ''}`}
+                  onMouseDown={e => { e.preventDefault(); restoreRange(); exec('formatBlock', tag === 'p' ? 'P' : tag.toUpperCase()); setCurrentBlock(tag); setShowHeadingMenu(false); }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="tb-sep" />
+
+        {/* ── Undo / Redo ── */}
+        <button type="button" className="tb-btn tb-undo-btn" title="Undo (⌘Z)" onMouseDown={e => { e.preventDefault(); exec('undo'); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 7v6h6"/><path d="M3 13A9 9 0 1021 12"/>
+          </svg>
+          <span>Undo</span>
+        </button>
+        <button type="button" className="tb-btn tb-undo-btn" title="Redo (⌘⇧Z)" onMouseDown={e => { e.preventDefault(); exec('redo'); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 7v6h-6"/><path d="M21 13A9 9 0 113 12"/>
+          </svg>
+          <span>Redo</span>
+        </button>
+
+        <div className="tb-sep" />
+
         {/* ── Format ── */}
         <Btn active={formats.bold} title="Bold (⌘B)" onMD={e => { e.preventDefault(); exec('bold'); }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6zM6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z"/></svg>
@@ -785,6 +873,30 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
           )}
         </div>
 
+        {/* ── Font size ── */}
+        <div className="fs-wrap">
+          <button type="button" className="tb-btn tb-fs-btn" title="Font size"
+            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); if (!showFontMenu) saveRange(); setShowFontMenu(s => !s); setShowHeadingMenu(false); setShowColors(false); setShowHighlights(false); setShowInsertMenu(false); }}>
+            <span>Aa</span>
+            <svg width="7" height="5" viewBox="0 0 10 7" fill="currentColor"><path d="M0 0l5 7 5-7z"/></svg>
+          </button>
+          {showFontMenu && (
+            <div className="fs-menu">
+              {([
+                { label: 'Small',   size: '2', px: '12px' },
+                { label: 'Normal',  size: '3', px: '14px' },
+                { label: 'Large',   size: '5', px: '20px' },
+                { label: 'X-Large', size: '6', px: '26px' },
+              ] as const).map(({ label, size, px }) => (
+                <button key={size} className="fs-item" style={{ fontSize: px }}
+                  onMouseDown={e => { e.preventDefault(); restoreRange(); exec('fontSize', size); setShowFontMenu(false); }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="tb-sep" />
 
         {/* ── Alignment ── */}
@@ -796,6 +908,11 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
         <Btn title="Align center" onMD={e => { e.preventDefault(); exec('justifyCenter'); }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+          </svg>
+        </Btn>
+        <Btn title="Align right" onMD={e => { e.preventDefault(); exec('justifyRight'); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="5" y1="18" x2="21" y2="18"/>
           </svg>
         </Btn>
 
@@ -814,6 +931,18 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
             <path d="M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>
+          </svg>
+        </Btn>
+        <Btn title="Indent" onMD={e => { e.preventDefault(); exec('indent'); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="11" y1="12" x2="21" y2="12"/><line x1="11" y1="18" x2="21" y2="18"/>
+            <polyline points="7 9 10 12 7 15"/>
+          </svg>
+        </Btn>
+        <Btn title="Outdent" onMD={e => { e.preventDefault(); exec('outdent'); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="11" y1="12" x2="21" y2="12"/><line x1="11" y1="18" x2="21" y2="18"/>
+            <polyline points="7 15 4 12 7 9"/>
           </svg>
         </Btn>
 
@@ -836,7 +965,7 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
         {/* ── Insert block ── */}
         <div className="insert-menu-wrap">
           <button type="button" className="tb-btn" title="Insert styled block"
-            onMouseDown={e => { e.preventDefault(); setShowInsertMenu(s => !s); }}>
+            onMouseDown={e => { e.preventDefault(); setShowInsertMenu(s => !s); setShowHeadingMenu(false); setShowFontMenu(false); }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M12 5v14M5 12h14"/>
             </svg>
@@ -844,11 +973,16 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
           {showInsertMenu && (
             <div className="insert-menu">
               {([
-                { key: 'steps',   label: '① Numbered steps',  desc: 'Styled circle badge steps' },
-                { key: 'callout', label: '💡 Callout box',    desc: 'Highlighted note or tip' },
-                { key: 'quote',   label: '❝ Pull quote',      desc: 'Styled blockquote' },
-                { key: 'cta',     label: '→ CTA button',      desc: 'Centered call-to-action' },
-                { key: 'divider', label: '— Divider',         desc: 'Horizontal rule' },
+                { key: 'steps',     label: '① Numbered steps',  desc: 'Styled circle badge steps' },
+                { key: 'callout',   label: '💡 Callout box',    desc: 'Highlighted note or tip' },
+                { key: 'quote',     label: '❝ Pull quote',      desc: 'Styled blockquote' },
+                { key: 'cta',       label: '→ CTA button',      desc: 'Centered call-to-action' },
+                { key: 'divider',   label: '— Divider',         desc: 'Horizontal rule' },
+                { key: 'spacer',    label: '↕ Spacer',          desc: 'Add vertical whitespace' },
+                { key: 'twocol',    label: '⊞ Two columns',     desc: 'Side-by-side content' },
+                { key: 'social',    label: '⬡ Social links',    desc: 'Twitter, LinkedIn, Instagram' },
+                { key: 'product',   label: '🛍 Product card',   desc: 'Image, price & buy button' },
+                { key: 'signature', label: '✍ Signature',       desc: 'Name, title & contact links' },
               ] as const).map(({ key, label, desc }) => (
                 <button key={key} className="im-item" onMouseDown={e => { e.preventDefault(); insertBlock(key); }}>
                   <span className="im-label">{label}</span>
@@ -864,6 +998,15 @@ function RichEditor({ initialHtml, onChange, placeholder }: RichEditorProps) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/>
             <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </Btn>
+
+        <div className="tb-sep" />
+
+        {/* ── Clear formatting ── */}
+        <Btn title="Clear formatting" onMD={e => { e.preventDefault(); exec('removeFormat'); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6zM6 12h9"/><line x1="17" y1="17" x2="21" y2="21"/><line x1="21" y1="17" x2="17" y2="21"/>
           </svg>
         </Btn>
       </div>
@@ -961,7 +1104,7 @@ const BackIcon = ({ size = 20 }: { size?: number }) => (
 function GmailDesktop({ subject, fromName, fromEmail, bodyHtml }: PreviewProps) {
   const initial = (fromName[0] ?? 'A').toUpperCase();
   const color = avatarBg(fromName || 'A');
-  const addr = (fromEmail || 'hello') + '@acme.co';
+  const addr = fromEmail || 'hello@yourdomain.com';
 
   return (
     <div className="gd-wrap">
@@ -1044,7 +1187,7 @@ function GmailDesktop({ subject, fromName, fromEmail, bodyHtml }: PreviewProps) 
 function PhoneFrame({ subject, fromName, fromEmail, bodyHtml }: PreviewProps) {
   const initial = (fromName[0] ?? 'A').toUpperCase();
   const color = avatarBg(fromName || 'A');
-  const addr = (fromEmail || 'hello') + '@acme.co';
+  const addr = fromEmail || 'hello@yourdomain.com';
   const sub = subject || 'Your subject line';
 
   return (
@@ -1136,20 +1279,68 @@ function PhoneFrame({ subject, fromName, fromEmail, bodyHtml }: PreviewProps) {
 export function CampaignComposerPage() {
   const navigate = useNavigate();
   const { onMenuOpen } = useOutletContext<{ onMenuOpen: () => void }>();
+  const location = useLocation();
+  const resendFrom = (location.state as { resendFrom?: Campaign } | null)?.resendFrom ?? null;
+  const workspace = useWorkspaceStore((s) => s.workspace);
 
   const [step, setStep] = useState<Step>(1);
-  const [showTemplatePicker, setShowTemplatePicker] = useState(true);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(!resendFrom);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
-  const [editorKey, setEditorKey] = useState(0);
+  const [editorKey, setEditorKey] = useState(resendFrom ? 1 : 0);
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
 
-  const [form, setForm] = useState({ name: '', fromName: '', fromEmail: '', subject: '', body: '' });
-  const [selectedSegId, setSelectedSegId] = useState('s1');
+  const [form, setForm] = useState({
+    name: resendFrom ? `${resendFrom.name} (resend)` : '',
+    fromName: resendFrom?.fromName ?? workspace?.senderName ?? '',
+    fromEmail: resendFrom?.fromEmail ?? workspace?.senderEmail ?? '',
+    subject: resendFrom?.subject ?? '',
+    body: resendFrom?.bodyHtml ?? '',
+  });
+  const [selectedSegId, setSelectedSegId] = useState<string>('');
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('now');
   const [scheduledAt, setScheduledAt] = useState('');
   const [sent, setSent] = useState(false);
+  const [segments, setSegments] = useState<SegmentOption[]>([]);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [segmentContacts, setSegmentContacts] = useState<Contact[]>([]);
+  const [segmentContactsLoading, setSegmentContactsLoading] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
 
-  const selectedSeg = SEGMENTS.find(s => s.id === selectedSegId) ?? SEGMENTS[0]!;
+  useEffect(() => {
+    if (!selectedSegId) { setSegmentContacts([]); return; }
+    setSegmentContactsLoading(true);
+    segmentsApi.contacts(selectedSegId, 1, 100)
+      .then(r => setSegmentContacts(r.contacts.filter(c => c.status === 'subscribed')))
+      .catch(() => setSegmentContacts([]))
+      .finally(() => setSegmentContactsLoading(false));
+  }, [selectedSegId]);
+
+  useEffect(() => {
+    segmentsApi.list(1, 100)
+      .then(({ items: data }) => {
+        const opts = data.map(s => ({
+          id: s.id,
+          name: s.name,
+          desc: s.filters.length === 0 ? 'All subscribed contacts' : `${s.filters.length} filter${s.filters.length !== 1 ? 's' : ''}`,
+          count: s.contactCount,
+        }));
+        setSegments(opts);
+        if (opts.length > 0) setSelectedSegId(opts[0]!.id);
+      })
+      .catch(() => {});
+  }, []);
+
+  const selectedSeg = segments.find(s => s.id === selectedSegId) ?? segments[0];
+
+  const searchLow = contactSearch.toLowerCase();
+  const visibleContacts = contactSearch
+    ? segmentContacts.filter(c =>
+        `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().includes(searchLow) ||
+        c.email.toLowerCase().includes(searchLow)
+      )
+    : segmentContacts;
 
   const update = useCallback((field: keyof typeof form, value: string) => {
     setForm(f => ({ ...f, [field]: value }));
@@ -1176,6 +1367,44 @@ export function CampaignComposerPage() {
     return d.textContent ?? '';
   }
 
+  function isValidUuid(s: string) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+  }
+
+  async function handleSend() {
+    setSending(true);
+    setSendError(null);
+
+    if (!form.fromEmail.includes('@') || form.fromEmail.toLowerCase().endsWith('@acme.co')) {
+      setSendError('Please enter a valid from email address using your own domain.');
+      setSending(false);
+      return;
+    }
+
+    try {
+      const campaign = await campaignsApi.create({
+        name: form.name,
+        subject: form.subject,
+        fromName: form.fromName,
+        fromEmail: form.fromEmail,
+        bodyHtml: form.body,
+        bodyText: plainText(form.body),
+        ...(selectedSegId && isValidUuid(selectedSegId) && { segmentId: selectedSegId }),
+      });
+      if (scheduleMode === 'later' && scheduledAt) {
+        await campaignsApi.schedule(campaign.id, new Date(scheduledAt).toISOString());
+      } else {
+        await campaignsApi.send(campaign.id);
+      }
+      setCreatedId(campaign.id);
+      setSent(true);
+    } catch {
+      setSendError('Failed to send. Please check your connection and try again.');
+    } finally {
+      setSending(false);
+    }
+  }
+
   if (sent) {
     return (
       <div className="view active">
@@ -1190,10 +1419,12 @@ export function CampaignComposerPage() {
               <p>
                 <b>{form.name || 'Your campaign'}</b>{' '}
                 {scheduleMode === 'now' ? 'is now fanning out to' : 'will send to'}{' '}
-                <b>{selectedSeg.count.toLocaleString()}</b> contacts in <b>{selectedSeg.name}</b>.
+                {selectedSeg
+                  ? <><b>{selectedSeg.count.toLocaleString()}</b> contacts in <b>{selectedSeg.name}</b></>
+                  : 'all subscribed contacts'}.
               </p>
               <div className="ss-actions">
-                <button className="btn btn-primary" onClick={() => navigate('/campaigns/1')}>View campaign</button>
+                <button className="btn btn-primary" onClick={() => navigate(`/campaigns/${createdId}`)}>View campaign</button>
                 <button className="btn btn-ghost" onClick={() => navigate('/campaigns')}>Back to campaigns</button>
               </div>
             </div>
@@ -1205,7 +1436,7 @@ export function CampaignComposerPage() {
 
   return (
     <div className="view active">
-      <Topbar crumb="Campaigns" title={step === 4 ? 'Review & send' : 'New campaign'} onMenuOpen={onMenuOpen} />
+      <Topbar crumb="Campaigns" title={resendFrom ? 'Resend campaign' : step === 4 ? 'Review & send' : 'New campaign'} onMenuOpen={onMenuOpen} />
       <div style={{ padding: '28px 24px 60px', maxWidth: 1240, margin: '0 auto' }}>
 
         {/* Stepper */}
@@ -1243,14 +1474,24 @@ export function CampaignComposerPage() {
                     <label>Choose a template</label>
                     <TemplatePicker onSelect={handleSelectTemplate} />
                   </div>
-                ) : (
+                ) : selectedTemplate ? (
                   <div className="tpl-selected-bar">
                     <div className="tpl-selected-thumb">
-                      <TemplateThumbnail t={selectedTemplate!} />
+                      <TemplateThumbnail t={selectedTemplate} />
                     </div>
                     <div className="tpl-selected-info">
-                      <div className="tpl-selected-name">{selectedTemplate!.name}</div>
-                      <div className="tpl-selected-cat">{selectedTemplate!.category}</div>
+                      <div className="tpl-selected-name">{selectedTemplate.name}</div>
+                      <div className="tpl-selected-cat">{selectedTemplate.category}</div>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setShowTemplatePicker(true)}>
+                      Change template
+                    </button>
+                  </div>
+                ) : (
+                  <div className="tpl-selected-bar">
+                    <div className="tpl-selected-info">
+                      <div className="tpl-selected-name">Existing content</div>
+                      <div className="tpl-selected-cat">Editing from previous campaign</div>
                     </div>
                     <button className="btn btn-ghost btn-sm" onClick={() => setShowTemplatePicker(true)}>
                       Change template
@@ -1271,10 +1512,7 @@ export function CampaignComposerPage() {
                       </div>
                       <div className="field">
                         <label>From email</label>
-                        <div className="inp-affix">
-                          <input placeholder="hello" value={form.fromEmail} onChange={e => update('fromEmail', e.target.value)} />
-                          <span className="pfx">@acme.co</span>
-                        </div>
+                        <input className="inp" type="email" placeholder="hello@yourdomain.com" value={form.fromEmail} onChange={e => update('fromEmail', e.target.value)} />
                       </div>
                     </div>
                     <div className="field">
@@ -1302,7 +1540,11 @@ export function CampaignComposerPage() {
                 <div className="field">
                   <label>Choose a segment</label>
                   <div className="seg-pick">
-                    {SEGMENTS.map(seg => (
+                    {segments.length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: 'var(--slate-3)', fontFamily: 'var(--mono)', fontSize: 13 }}>
+                        No segments found — campaign will send to all subscribed contacts.
+                      </div>
+                    ) : segments.map(seg => (
                       <button key={seg.id} className={`seg-card${selectedSegId === seg.id ? ' selected' : ''}`} onClick={() => setSelectedSegId(seg.id)}>
                         <span className="seg-radio" />
                         <span className="seg-body">
@@ -1317,6 +1559,65 @@ export function CampaignComposerPage() {
                 <div className="callout-box">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
                   <div className="cbt"><b>Suppressions applied automatically.</b> Unsubscribed, bounced, and complained contacts are always excluded — no extra step required.</div>
+                </div>
+
+                {/* ── Segment contact preview ── */}
+                <div className="field" style={{ marginTop: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                    <label style={{ margin: 0 }}>
+                      Who's on the list
+                      {selectedSeg && (
+                        <span style={{ marginLeft: 8, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--slate-3)', fontWeight: 400 }}>
+                          {selectedSeg.count.toLocaleString()} of {selectedSeg.count.toLocaleString()} will receive this
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                  <div className="rcpt-panel">
+                    <div className="rcpt-search">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                      <input type="text" placeholder="Search by name or email…" value={contactSearch} onChange={e => setContactSearch(e.target.value)} />
+                      {contactSearch && (
+                        <button style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--slate-3)', padding: 0, lineHeight: 1 }} onClick={() => setContactSearch('')}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      )}
+                    </div>
+                    <div className="rcpt-list">
+                      {segmentContactsLoading ? (
+                        <div className="rcpt-empty">Loading contacts…</div>
+                      ) : !selectedSegId ? (
+                        <div className="rcpt-empty">Select a segment to preview recipients</div>
+                      ) : visibleContacts.length === 0 && contactSearch ? (
+                        <div className="rcpt-empty">No contacts match your search</div>
+                      ) : visibleContacts.length === 0 ? (
+                        <div className="rcpt-empty">No subscribed contacts in this segment</div>
+                      ) : visibleContacts.map(c => {
+                        const name = [c.firstName, c.lastName].filter(Boolean).join(' ') || c.email;
+                        const initials = ((c.firstName?.[0] ?? '') + (c.lastName?.[0] ?? '')).toUpperCase() || c.email.slice(0, 2).toUpperCase();
+                        return (
+                          <div key={c.id} className="rcpt-row">
+                            <div className="rcpt-av" style={{ background: avatarBg(c.email) }}>{initials}</div>
+                            <div className="rcpt-info">
+                              <div className="rcpt-name">{name}</div>
+                              <div className="rcpt-email">{c.email}</div>
+                            </div>
+                            <div className="rcpt-check on">
+                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="rcpt-footer">
+                      <span>
+                        {!selectedSegId
+                          ? 'No segment selected'
+                          : <><b>{selectedSeg?.count.toLocaleString() ?? 0}</b> subscriber{(selectedSeg?.count ?? 0) !== 1 ? 's' : ''} will receive this campaign</>
+                        }
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1347,8 +1648,11 @@ export function CampaignComposerPage() {
                 <div className="card card-pad" style={{ marginTop: 20, background: 'var(--bg)' }}>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--slate-3)', marginBottom: 6 }}>Rate estimate</div>
                   <div style={{ fontSize: 14, color: 'var(--ink-2)' }}>
-                    <span style={{ fontFamily: 'var(--display)', fontWeight: 600, color: 'var(--ink)' }}>{selectedSeg.count.toLocaleString()}</span>{' contacts ≈ '}
-                    <span>{selectedSeg.count <= 2000 ? `~${Math.ceil(selectedSeg.count / 2000 * 60)} minutes` : `~${(selectedSeg.count / 2000).toFixed(1)} hours`}</span>{' at 2,000/hour'}
+                    <span style={{ fontFamily: 'var(--display)', fontWeight: 600, color: 'var(--ink)' }}>{(selectedSeg?.count ?? 0).toLocaleString()}</span>{' contacts ≈ '}
+                    <span>{(() => {
+                      const n = selectedSeg?.count ?? 0;
+                      return n === 0 ? 'instant' : n <= 2000 ? `~${Math.ceil(n / 2000 * 60)} minutes` : `~${(n / 2000).toFixed(1)} hours`;
+                    })()}</span>{' at 2,000/hour'}
                   </div>
                 </div>
               </div>
@@ -1361,11 +1665,12 @@ export function CampaignComposerPage() {
                   <div className="review-list">
                     {[
                       { k: 'Campaign', v: form.name || '—', sub: null, goto: 1 },
+
                       { k: 'Template', v: selectedTemplate?.name ?? 'Blank', sub: selectedTemplate?.category ?? null, goto: 1 },
                       { k: 'Subject', v: resolveMergeTags(form.subject) || '—', sub: null, goto: 1 },
-                      { k: 'From', v: `${form.fromName} <${form.fromEmail}@acme.co>`, sub: null, goto: 1 },
+                      { k: 'From', v: `${form.fromName} <${form.fromEmail}>`, sub: null, goto: 1 },
                       { k: 'Body', v: form.body ? `${plainText(form.body).slice(0, 70).trim()}…` : '—', sub: null, goto: 1 },
-                      { k: 'Audience', v: selectedSeg.name, sub: `${selectedSeg.count.toLocaleString()} recipients · suppressions excluded`, goto: 2 },
+                      { k: 'Audience', v: selectedSeg?.name ?? 'All contacts', sub: selectedSeg ? `${selectedSeg.count.toLocaleString()} recipients · suppressions excluded` : 'Suppressions excluded', goto: 2 },
                       { k: 'Delivery', v: scheduleMode === 'now' ? 'Send now' : 'Scheduled', sub: scheduleMode === 'later' ? scheduledAt : 'Queued immediately on launch', goto: 3 },
                     ].map(row => (
                       <div key={row.k} className="review-row">
@@ -1376,6 +1681,11 @@ export function CampaignComposerPage() {
                     ))}
                   </div>
                 </div>
+                {sendError && (
+                  <div style={{ marginTop: 12, padding: '10px 14px', background: '#fee2e2', borderRadius: 8, color: '#dc2626', fontSize: 13, fontFamily: 'var(--mono)' }}>
+                    {sendError}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1397,9 +1707,9 @@ export function CampaignComposerPage() {
                 </button>
               )}
               {step === 4 && (
-                <button className="btn btn-coral" onClick={() => setSent(true)}>
+                <button className="btn btn-coral" onClick={handleSend} disabled={sending}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
-                  Send campaign
+                  {sending ? 'Sending…' : 'Send campaign'}
                 </button>
               )}
             </div>

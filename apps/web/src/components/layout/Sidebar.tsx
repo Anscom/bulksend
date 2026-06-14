@@ -1,33 +1,19 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useWorkspaceStore } from '../../stores/workspace.store.js';
 import { useAuthStore } from '../../stores/auth.store.js';
 import { authApi } from '../../lib/api/auth.js';
+import { campaignsApi } from '../../lib/api/campaigns.js';
+import { contactsApi } from '../../lib/api/contacts.js';
+import { segmentsApi } from '../../lib/api/segments.js';
+import { analyticsApi } from '../../lib/api/analytics.js';
+import { WorkspacePanel } from '../workspace/WorkspacePanel.js';
 
-const navItems = [
-  {
-    group: null,
-    items: [
-      { view: 'dashboard',  label: 'Dashboard',  badge: null },
-      { view: 'campaigns',  label: 'Campaigns',  badge: '8' },
-      { view: 'contacts',   label: 'Contacts',   badge: '48.2k' },
-      { view: 'segments',   label: 'Segments',   badge: '12' },
-    ],
-  },
-  {
-    group: 'Insights',
-    items: [
-      { view: 'analytics', label: 'Analytics',     badge: null },
-      { view: 'events',    label: 'Event stream',  badge: null },
-    ],
-  },
-  {
-    group: 'Workspace',
-    items: [
-      { view: 'settings', label: 'Settings', badge: null },
-      { view: 'upgrade', label: 'Plans & Billing', badge: null },
-    ],
-  },
-];
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}k`;
+  return String(n);
+}
 
 const icons: Record<string, React.ReactNode> = {
   dashboard:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>,
@@ -51,6 +37,31 @@ export function Sidebar({ onClose }: SidebarProps) {
   const clearWorkspace = useWorkspaceStore((s) => s.clear);
   const { email, name, clear: clearAuth } = useAuthStore();
 
+  const [wsOpen, setWsOpen] = useState(false);
+  const [campaignCount, setCampaignCount] = useState<number | null>(null);
+  const [contactCount,  setContactCount]  = useState<number | null>(null);
+  const [segmentCount,  setSegmentCount]  = useState<number | null>(null);
+  const [sendsThisHour, setSendsThisHour] = useState(0);
+  const [planLimit,     setPlanLimit]     = useState(workspace?.sendRatePerHour ?? 100);
+  const [minutesLeft,   setMinutesLeft]   = useState(60 - new Date().getMinutes());
+
+  useEffect(() => {
+    // Fetch all nav counts in parallel
+    Promise.all([
+      campaignsApi.list(1, 1),
+      contactsApi.list(1, 1),
+      segmentsApi.list(1, 1),
+      analyticsApi.getUsage(),
+    ]).then(([campaigns, contacts, segments, usage]) => {
+      setCampaignCount(campaigns.total);
+      setContactCount(contacts.total);
+      setSegmentCount(segments.total);
+      setSendsThisHour(usage.sendsThisHour);
+      setPlanLimit(usage.planLimit);
+      setMinutesLeft(usage.minutesUntilReset);
+    }).catch(() => {});
+  }, [location.pathname]); // refresh counts on navigation
+
   const currentView = location.pathname.split('/')[1] ?? 'dashboard';
 
   function go(view: string) {
@@ -68,7 +79,41 @@ export function Sidebar({ onClose }: SidebarProps) {
   const initials = (name ?? email ?? 'JL').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   const wsInitial = (workspace?.name ?? 'A')[0]?.toUpperCase() ?? 'A';
 
+  const remaining = Math.max(0, planLimit - sendsThisHour);
+  const usagePct  = planLimit > 0 ? Math.min(100, Math.round((sendsThisHour / planLimit) * 100)) : 0;
+  const isNearLimit = usagePct >= 80;
+
+  const navItems = [
+    {
+      group: null,
+      items: [
+        { view: 'dashboard', label: 'Dashboard',  badge: null },
+        { view: 'campaigns', label: 'Campaigns',  badge: campaignCount !== null ? formatCount(campaignCount) : null },
+        { view: 'contacts',  label: 'Contacts',   badge: contactCount  !== null ? formatCount(contactCount)  : null },
+        { view: 'segments',  label: 'Segments',   badge: segmentCount  !== null ? formatCount(segmentCount)  : null },
+      ],
+    },
+    {
+      group: 'Insights',
+      items: [
+        { view: 'analytics', label: 'Analytics',    badge: null },
+        { view: 'events',    label: 'Event stream', badge: null },
+      ],
+    },
+    {
+      group: 'Workspace',
+      items: [
+        { view: 'settings', label: 'Settings',       badge: null },
+        { view: 'upgrade',  label: 'Plans & Billing', badge: null },
+      ],
+    },
+  ];
+
   return (
+    <>
+    {wsOpen && workspace && (
+      <WorkspacePanel workspace={workspace} onClose={() => setWsOpen(false)} />
+    )}
     <aside className="sidebar">
       <div className="sb-top">
         <div className="brand">
@@ -77,11 +122,11 @@ export function Sidebar({ onClose }: SidebarProps) {
           </span>
           BulkSend
         </div>
-        <button className="ws-switch">
+        <button className="ws-switch" onClick={() => workspace && setWsOpen(true)}>
           <span className="ws-avatar">{wsInitial}</span>
           <span className="ws-meta">
             <span className="wn">{workspace?.name ?? 'Workspace'}</span>
-            <span className="wp">{workspace?.plan ?? 'Free'} · {workspace ? '1 member' : ''}</span>
+            <span className="wp">{workspace?.plan ?? 'Free'} · Members</span>
           </span>
           <span className="chev">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>
@@ -112,11 +157,13 @@ export function Sidebar({ onClose }: SidebarProps) {
         <div className="usage">
           <div className="ut">
             <span className="ul">Send rate · this hour</span>
-            <span className="uv">84 / 100</span>
+            <span className="uv">{sendsThisHour.toLocaleString()} / {planLimit.toLocaleString()}</span>
           </div>
-          <div className="track"><div className="fill" style={{ width: '84%', background: 'var(--amber)' }} /></div>
+          <div className="track">
+            <div className="fill" style={{ width: `${usagePct}%`, background: isNearLimit ? 'var(--amber)' : undefined }} />
+          </div>
           <div className="uh" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span><b>16</b> remaining · resets in 23m</span>
+            <span><b>{remaining.toLocaleString()}</b> remaining · resets in {minutesLeft}m</span>
             <button
               onClick={() => go('upgrade')}
               style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--indigo)', fontWeight: 600, cursor: 'pointer', padding: 0, fontFamily: 'var(--mono)' }}
@@ -145,5 +192,6 @@ export function Sidebar({ onClose }: SidebarProps) {
         </button>
       </div>
     </aside>
+    </>
   );
 }

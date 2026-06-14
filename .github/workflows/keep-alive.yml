@@ -1,0 +1,28 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes
+  workflow_dispatch:          # allow manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Ping API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            "${{ vars.API_URL }}/health")
+          echo "API status: $STATUS"
+          [ "$STATUS" = "200" ] || echo "::warning::API returned $STATUS"
+
+      - name: Ping Worker
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            "${{ vars.WORKER_URL }}/")
+          echo "Worker status: $STATUS"
+          [ "$STATUS" = "200" ] || echo "::warning::Worker returned $STATUS"

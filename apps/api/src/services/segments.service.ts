@@ -1,10 +1,19 @@
 import { prisma } from '../db/client.js';
 import { Errors } from '../lib/errors.js';
-import type { Segment, CreateSegmentRequest } from '@bulksend/shared';
+import { buildSegmentContactFilter } from '@bulksend/shared';
+import type { Segment, Contact, CreateSegmentRequest } from '@bulksend/shared';
 
-export async function listSegments(workspaceId: string): Promise<Segment[]> {
-  const segments = await prisma.segment.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } });
-  return segments as unknown as Segment[];
+export async function listSegments(
+  workspaceId: string,
+  page = 1,
+  pageSize = 50,
+): Promise<{ items: Segment[]; total: number }> {
+  const where = { workspaceId };
+  const [items, total] = await Promise.all([
+    prisma.segment.findMany({ where, orderBy: { name: 'asc' }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.segment.count({ where }),
+  ]);
+  return { items: items as unknown as Segment[], total };
 }
 
 export async function getSegment(id: string, workspaceId: string): Promise<Segment> {
@@ -19,7 +28,7 @@ export async function createSegment(
 ): Promise<Segment> {
   const count = await countSegmentContacts(workspaceId, data.filters);
   const segment = await prisma.segment.create({
-    data: { ...data, workspaceId, contactCount: count, filters: JSON.stringify(data.filters) },
+    data: { ...data, workspaceId, contactCount: count, filters: data.filters as never },
   });
   return segment as unknown as Segment;
 }
@@ -37,7 +46,7 @@ export async function updateSegment(
     where: { id },
     data: {
       ...(data.name ? { name: data.name } : {}),
-      ...(data.filters ? { filters: JSON.stringify(data.filters), contactCount: count } : {}),
+      ...(data.filters ? { filters: data.filters as never, contactCount: count } : {}),
     },
   });
   return updated as unknown as Segment;
@@ -53,13 +62,50 @@ export async function deleteSegment(id: string, workspaceId: string): Promise<vo
   await prisma.segment.delete({ where: { id } });
 }
 
+export async function getSegmentContacts(
+  id: string,
+  workspaceId: string,
+  page: number = 1,
+  pageSize: number = 50,
+): Promise<{ contacts: Contact[]; total: number }> {
+  const segment = await prisma.segment.findFirst({ where: { id, workspaceId } });
+  if (!segment) throw Errors.notFound('Segment');
+
+  const raw = segment.filters;
+  const filters = (Array.isArray(raw) ? raw : JSON.parse(raw as unknown as string)) as CreateSegmentRequest['filters'];
+  const where = buildSegmentContactFilter(workspaceId, filters);
+
+  const [contacts, total] = await Promise.all([
+    prisma.contact.findMany({
+      where: where as never,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.contact.count({ where: where as never }),
+  ]);
+
+  return { contacts: contacts as unknown as Contact[], total };
+}
+
+export async function refreshSegmentCounts(workspaceId: string): Promise<void> {
+  const segments = await prisma.segment.findMany({
+    where: { workspaceId },
+    select: { id: true, filters: true },
+  });
+  await Promise.all(
+    segments.map(async (seg) => {
+      const count = await countSegmentContacts(workspaceId, seg.filters);
+      await prisma.segment.update({ where: { id: seg.id }, data: { contactCount: count } });
+    }),
+  );
+}
+
 async function countSegmentContacts(
   workspaceId: string,
-  filters: CreateSegmentRequest['filters'],
+  filters: CreateSegmentRequest['filters'] | unknown,
 ): Promise<number> {
-  // Simplified: count subscribed contacts matching status filter
-  // In production, build a dynamic Prisma where clause from the filter DSL
-  return prisma.contact.count({
-    where: { workspaceId, status: 'subscribed', deletedAt: null },
-  });
+  const resolved = Array.isArray(filters) ? filters : JSON.parse(filters as string);
+  const where = buildSegmentContactFilter(workspaceId, resolved as CreateSegmentRequest['filters']);
+  return prisma.contact.count({ where: { ...where, status: 'subscribed' } as never });
 }

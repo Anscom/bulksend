@@ -79,6 +79,15 @@ export async function scheduleCampaign(
     where: { id },
     data: { status: 'scheduled', scheduledAt },
   });
+  await prisma.notification.create({
+    data: {
+      workspaceId,
+      type: 'campaign_scheduled',
+      title: 'Campaign scheduled',
+      body: `"${campaign.name}" is scheduled to send on ${scheduledAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}.`,
+      metadata: { campaignId: id },
+    },
+  });
   return updated as unknown as Campaign;
 }
 
@@ -111,6 +120,87 @@ export async function sendCampaign(
   });
 
   return updated as unknown as Campaign;
+}
+
+export async function pauseCampaign(id: string, workspaceId: string): Promise<Campaign> {
+  const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
+  if (!campaign) throw Errors.notFound('Campaign');
+  if (campaign.status !== 'sending') throw Errors.unprocessable('Only sending campaigns can be paused');
+  const updated = await prisma.campaign.update({ where: { id }, data: { status: 'paused' } });
+  return updated as unknown as Campaign;
+}
+
+export async function resumeCampaign(
+  id: string,
+  workspaceId: string,
+  idempotencyKey: string,
+): Promise<Campaign> {
+  const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
+  if (!campaign) throw Errors.notFound('Campaign');
+  if (campaign.status !== 'paused') throw Errors.unprocessable('Campaign is not paused');
+
+  const updated = await prisma.campaign.update({ where: { id }, data: { status: 'sending' } });
+
+  const producer = await getProducer();
+  await producer.send({
+    topic: Topics.CAMPAIGN_DISPATCH,
+    messages: [{
+      key: id,
+      value: JSON.stringify({ campaignId: id, workspaceId, dispatchedAt: new Date().toISOString() }),
+      headers: { 'idempotency-key': idempotencyKey },
+    }],
+  });
+
+  return updated as unknown as Campaign;
+}
+
+export type CampaignSendRow = {
+  id: string;
+  status: string;
+  sentAt: string | null;
+  contactId: string;
+  contactEmail: string;
+  contactFirstName: string | null;
+  contactLastName: string | null;
+  contactStatus: string;
+};
+
+export async function getCampaignSends(
+  id: string,
+  workspaceId: string,
+  page = 1,
+  pageSize = 200,
+): Promise<{ items: CampaignSendRow[]; total: number }> {
+  const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
+  if (!campaign) throw Errors.notFound('Campaign');
+
+  const [items, total] = await Promise.all([
+    prisma.send.findMany({
+      where: { campaignId: id, workspaceId },
+      orderBy: { createdAt: 'asc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true, status: true, sentAt: true,
+        contact: { select: { id: true, email: true, firstName: true, lastName: true, status: true } },
+      },
+    }),
+    prisma.send.count({ where: { campaignId: id, workspaceId } }),
+  ]);
+
+  return {
+    items: items.map((s) => ({
+      id: s.id,
+      status: s.status,
+      sentAt: s.sentAt?.toISOString() ?? null,
+      contactId: s.contact.id,
+      contactEmail: s.contact.email,
+      contactFirstName: s.contact.firstName ?? null,
+      contactLastName: s.contact.lastName ?? null,
+      contactStatus: s.contact.status,
+    })),
+    total,
+  };
 }
 
 export async function getCampaignStats(

@@ -4,6 +4,7 @@ import { Errors } from '../lib/errors.js';
 import { redis } from '../redis/client.js';
 import { suppKey, suppLoadedKey } from '../redis/keys.js';
 import type { Contact, CreateContactRequest, UpdateContactRequest } from '@bulksend/shared';
+import { refreshSegmentCounts } from './segments.service.js';
 
 export async function listContacts(
   workspaceId: string,
@@ -59,6 +60,12 @@ export async function updateContact(
     await redis.sadd(suppKey(workspaceId), contact.email);
   }
 
+  // Refresh segment counts if status changed (subscribed ↔ unsubscribed/bounced affects counts)
+  const newStatus = (data as Record<string, unknown>)['status'];
+  if (newStatus !== undefined && newStatus !== contact.status) {
+    refreshSegmentCounts(workspaceId).catch(() => {});
+  }
+
   return updated as unknown as Contact;
 }
 
@@ -66,6 +73,7 @@ export async function deleteContact(id: string, workspaceId: string): Promise<vo
   const contact = await prisma.contact.findFirst({ where: { id, workspaceId, deletedAt: null } });
   if (!contact) throw Errors.notFound('Contact');
   await prisma.contact.update({ where: { id }, data: { deletedAt: new Date() } });
+  await refreshSegmentCounts(workspaceId);
 }
 
 export async function importContacts(

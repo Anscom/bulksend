@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { Topbar } from '../../components/layout/Topbar.js';
 import { useWorkspaceStore } from '../../stores/workspace.store.js';
+import { contactsApi } from '../../lib/api/contacts.js';
+import { analyticsApi } from '../../lib/api/analytics.js';
+import { billingApi } from '../../lib/api/billing.js';
 
 type PlanId = 'free' | 'pro' | 'enterprise';
 
@@ -36,7 +39,7 @@ const PLANS: PlanDef[] = [
   {
     id: 'pro',
     name: 'Pro',
-    price: '$49',
+    price: '$20',
     period: '/month',
     highlight: '2,000 emails / hour',
     contacts: '100,000 contacts',
@@ -130,14 +133,76 @@ function UsageBar({ label, used, limit, unit = '' }: { label: string; used: numb
 export function UpgradePage() {
   const { onMenuOpen } = useOutletContext<{ onMenuOpen: () => void }>();
   const workspace = useWorkspaceStore((s) => s.workspace);
+  const setWorkspace = useWorkspaceStore((s) => s.setWorkspace);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState('');
+  const [verifyState, setVerifyState] = useState<'idle' | 'verifying' | 'done' | 'error'>('idle');
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const currentPlan = (workspace?.plan ?? 'free') as 'free' | 'pro' | 'enterprise';
 
-  const usageData = {
-    contacts: { used: 3842, limit: currentPlan === 'free' ? 5000 : 100000 },
-    sendRate: { used: 84, limit: currentPlan === 'free' ? 100 : 2000 },
-  };
+  const successMsg = searchParams.get('success') === 'true' || verifyState === 'done'
+    ? 'Payment successful! Your plan has been upgraded to Pro.'
+    : null;
+  const cancelMsg = searchParams.get('canceled') === 'true'
+    ? 'Checkout canceled — no changes were made.'
+    : null;
+
+  // On Stripe redirect back, verify the session and upgrade the plan immediately
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    const isSuccess = searchParams.get('success') === 'true';
+    setSearchParams({}, { replace: true });
+
+    if (!isSuccess || !sessionId) return;
+
+    setVerifyState('verifying');
+    billingApi.verifySession(sessionId)
+      .then(() => {
+        if (workspace) setWorkspace({ ...workspace, plan: 'pro', sendRatePerHour: 2000 });
+        setVerifyState('done');
+      })
+      .catch(() => setVerifyState('error'));
+  }, []);
+
+  const [usageData, setUsageData] = useState({
+    contacts: { used: 0, limit: workspace?.sendRatePerHour ?? 100 },
+    sendRate: { used: 0, limit: workspace?.sendRatePerHour ?? 100 },
+  });
+
+  useEffect(() => {
+    Promise.all([contactsApi.list(1, 1), analyticsApi.getUsage()]).then(([contacts, usage]) => {
+      setUsageData({
+        contacts: { used: contacts.total, limit: currentPlan === 'free' ? 5000 : 100_000 },
+        sendRate: { used: usage.sendsThisHour, limit: usage.planLimit },
+      });
+    }).catch(() => {});
+  }, [currentPlan]);
+
+  async function handleUpgrade() {
+    setBillingError('');
+    setBillingLoading(true);
+    try {
+      const { url } = await billingApi.createCheckout();
+      window.location.href = url;
+    } catch (err: unknown) {
+      setBillingError(err instanceof Error ? err.message : 'Failed to start checkout');
+      setBillingLoading(false);
+    }
+  }
+
+  async function handleManage() {
+    setBillingError('');
+    setBillingLoading(true);
+    try {
+      const { url } = await billingApi.createPortal();
+      window.location.href = url;
+    } catch (err: unknown) {
+      setBillingError(err instanceof Error ? err.message : 'Failed to open billing portal');
+      setBillingLoading(false);
+    }
+  }
 
   const currentPlanDef = PLANS.find(p => p.id === currentPlan)!;
   const isOnFree = currentPlan === 'free';
@@ -151,6 +216,32 @@ export function UpgradePage() {
     <div className="view active">
       <Topbar crumb={workspace?.name ?? 'Workspace'} title="Plans & Billing" onMenuOpen={onMenuOpen} />
       <div style={{ padding: '28px 24px 80px', maxWidth: 900, margin: '0 auto' }}>
+
+        {verifyState === 'verifying' && (
+          <div style={{ background: 'var(--indigo-tint)', border: '1px solid var(--indigo-tint2)', borderRadius: 'var(--r)', padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--indigo-600)', fontWeight: 500 }}>
+            Verifying payment…
+          </div>
+        )}
+        {verifyState === 'error' && (
+          <div style={{ background: 'var(--amber-tint)', border: '1px solid oklch(0.85 0.06 75)', borderRadius: 'var(--r)', padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--ink-2)' }}>
+            Payment received but plan verification failed — please refresh the page or contact support.
+          </div>
+        )}
+        {successMsg && verifyState !== 'verifying' && (
+          <div style={{ background: 'var(--green-tint, #f0fdf4)', border: '1px solid #86efac', borderRadius: 'var(--r)', padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: '#15803d', fontWeight: 500 }}>
+            {successMsg}
+          </div>
+        )}
+        {cancelMsg && (
+          <div style={{ background: 'var(--amber-tint)', border: '1px solid oklch(0.85 0.06 75)', borderRadius: 'var(--r)', padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--ink-2)' }}>
+            {cancelMsg}
+          </div>
+        )}
+        {billingError && (
+          <div style={{ background: 'var(--red-tint)', border: '1px solid #fca5a5', borderRadius: 'var(--r)', padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--red)' }}>
+            {billingError}
+          </div>
+        )}
 
         {/* Current plan status */}
         <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 'var(--r-lg)', padding: '22px 24px', marginBottom: 32 }}>
@@ -174,12 +265,23 @@ export function UpgradePage() {
                   : `Billed monthly · next invoice on Jul 10, 2026`}
               </p>
             </div>
-            {isOnFree && (
-              <div style={{ background: 'var(--indigo-tint)', border: '1px solid var(--indigo-tint2)', borderRadius: 'var(--r)', padding: '10px 14px', fontSize: 13 }}>
-                <strong style={{ color: 'var(--indigo-600)' }}>14-day Pro trial available</strong>
-                <span style={{ color: 'var(--slate)', marginLeft: 6 }}>No credit card needed.</span>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {isOnFree && (
+                <div style={{ background: 'var(--indigo-tint)', border: '1px solid var(--indigo-tint2)', borderRadius: 'var(--r)', padding: '10px 14px', fontSize: 13 }}>
+                  <strong style={{ color: 'var(--indigo-600)' }}>14-day Pro trial available</strong>
+                  <span style={{ color: 'var(--slate)', marginLeft: 6 }}>No credit card needed.</span>
+                </div>
+              )}
+              {!isOnFree && currentPlan !== 'enterprise' && (
+                <button
+                  onClick={handleManage}
+                  disabled={billingLoading}
+                  style={{ padding: '8px 16px', borderRadius: 'var(--r)', border: '1px solid var(--line)', background: 'var(--paper)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', opacity: billingLoading ? 0.6 : 1 }}
+                >
+                  {billingLoading ? 'Loading…' : 'Manage subscription →'}
+                </button>
+              )}
+            </div>
           </div>
 
           <UsageBar label="Contacts" used={usageData.contacts.used} limit={usageData.contacts.limit} />
@@ -281,26 +383,32 @@ export function UpgradePage() {
                 </div>
 
                 <button
-                  disabled={isCurrent}
+                  disabled={isCurrent || billingLoading}
+                  onClick={() => {
+                    if (isCurrent) return;
+                    if (plan.id === 'pro') handleUpgrade();
+                    else if (plan.id === 'enterprise') window.location.href = 'mailto:sales@bulksend.io';
+                  }}
                   style={{
                     width: '100%',
                     padding: '10px 16px',
                     borderRadius: 'var(--r)',
                     fontWeight: 600,
                     fontSize: 13.5,
-                    cursor: isCurrent ? 'default' : 'pointer',
+                    cursor: isCurrent || billingLoading ? 'default' : 'pointer',
                     border: 'none',
                     transition: 'background 0.15s, opacity 0.15s',
+                    opacity: billingLoading && plan.id === 'pro' ? 0.6 : 1,
                     ...(isCurrent
                       ? { background: 'var(--line)', color: 'var(--slate)' }
                       : isPro
                       ? { background: 'linear-gradient(135deg, var(--indigo), var(--coral))', color: '#fff', boxShadow: '0 4px 14px oklch(0.5 0.15 310/.35)' }
                       : { background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink-2)' }),
                   }}
-                  onMouseEnter={e => { if (!isCurrent) (e.currentTarget as HTMLButtonElement).style.opacity = '0.88'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+                  onMouseEnter={e => { if (!isCurrent && !billingLoading) (e.currentTarget as HTMLButtonElement).style.opacity = '0.88'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = billingLoading && plan.id === 'pro' ? '0.6' : '1'; }}
                 >
-                  {isCurrent ? 'Current plan' : plan.cta}
+                  {isCurrent ? 'Current plan' : billingLoading && plan.id === 'pro' ? 'Loading…' : plan.cta}
                 </button>
               </div>
             );

@@ -13,6 +13,9 @@ export interface Workspace {
   slug: string;
   plan: PlanTier;
   sendRatePerHour: number;
+  brevoApiKey?: string | null;
+  senderEmail?: string | null;
+  senderName?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,4 +123,21 @@ export interface CampaignStats {
   openRate: number;
   clickRate: number;
   bounceRate: number;
+}
+
+export interface AnalyticsOverview {
+  totalSent: number;
+  deliveryRate: number;
+  openRate: number;
+  activeContacts: number;
+  sentTrend: number;
+  deliveryTrend: number;
+  openTrend: number;
+  contactsTrend: number;
+}
+
+export interface VolumePoint {
+  date: string;
+  delivered: number;
+  opened: number;
 }

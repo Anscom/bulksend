@@ -1,4 +1,5 @@
 import './lib/env.js';
+import http from 'node:http';
 import { kafka } from './kafka/client.js';
 import { Topics, CONSUMER_GROUPS } from '@bulksend/shared';
 import { startDispatcher } from './consumers/dispatcher.js';
@@ -6,7 +7,6 @@ import { startSender } from './consumers/sender.js';
 import { startEventWorker } from './consumers/event-worker.js';
 import { startDlqMonitor } from './consumers/dlq-monitor.js';
 import { prisma } from './db/client.js';
-import { redis } from './redis/client.js';
 import { logger } from './lib/logger.js';
 import { env } from './lib/env.js';
 
@@ -55,6 +55,13 @@ async function main() {
 
   logger.info('All consumers running');
 
+  // Health check server — keeps Render free web service alive (no spin-down)
+  const port = process.env['PORT'] ?? 3002;
+  const healthServer = http.createServer((_req, res) => {
+    res.writeHead(200).end(JSON.stringify({ ok: true, service: 'worker' }));
+  });
+  healthServer.listen(port, () => logger.info({ port }, 'Worker health server listening'));
+
   async function shutdown(signal: string) {
     logger.info({ signal }, 'Graceful shutdown');
     await Promise.all([
@@ -64,7 +71,6 @@ async function main() {
       dlqConsumer.disconnect(),
       producer.disconnect(),
       prisma.$disconnect(),
-      redis.quit(),
     ]);
     logger.info('Worker shutdown complete');
     process.exit(0);

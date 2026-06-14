@@ -18,8 +18,8 @@ async function main() {
     create: {
       name: 'BulkSend',
       slug: 'bulksend-main',
-      plan: 'pro',
-      sendRatePerHour: 2000,
+      plan: 'free',
+      sendRatePerHour: 100,
     },
   });
   console.log('workspace:', ws.id);

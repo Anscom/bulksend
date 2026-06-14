@@ -3,7 +3,6 @@ import { createApp } from './app.js';
 import { env } from './lib/env.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './db/client.js';
-import { redis } from './redis/client.js';
 import { disconnectProducer } from './kafka/producer.js';
 
 const app = createApp();
@@ -17,7 +16,6 @@ async function shutdown(signal: string) {
     try {
       await Promise.all([
         prisma.$disconnect(),
-        redis.quit(),
         disconnectProducer(),
       ]);
       logger.info('Graceful shutdown complete');

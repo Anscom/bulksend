@@ -1,7 +1,9 @@
 import { useAuthStore } from '../../stores/auth.store.js';
 import type { ApiResponse } from '@bulksend/shared';
 
-const BASE_URL = '/api/v1';
+// In dev: Vite proxy rewrites /api → localhost:3001, so relative path works.
+// In production: set VITE_API_URL=https://bulksend-api.onrender.com
+const BASE_URL = (import.meta.env['VITE_API_URL'] ?? '') + '/api/v1';
 
 export class ApiError extends Error {
   constructor(
@@ -48,6 +50,7 @@ async function request<T>(
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
   const body = (await response.json()) as ApiResponse<T>;
 
   if (!body.ok) {

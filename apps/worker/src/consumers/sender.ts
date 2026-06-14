@@ -1,8 +1,8 @@
 import type { Consumer, Producer } from 'kafkajs';
-import { Topics, CONSUMER_GROUPS } from '@bulksend/shared';
+import { Topics } from '@bulksend/shared';
 import type { EmailSendPayload, EmailSendRetryPayload } from '@bulksend/shared';
 import { prisma } from '../db/client.js';
-import { sendEmail } from '../services/sendgrid.js';
+import { sendEmail } from '../services/brevo.js';
 import { isSuppressed } from '../services/suppression.js';
 import { acquireToken } from '../services/rate-limiter.js';
 import { decrementAndCheck } from '../services/completion.js';
@@ -72,7 +72,7 @@ async function handleSend(
   // 3. Rate limit check
   const workspace = await prisma.workspace.findUnique({
     where: { id: payload.workspaceId },
-    select: { sendRatePerHour: true },
+    select: { sendRatePerHour: true, brevoApiKey: true },
   });
   const ratePerMinute = Math.ceil((workspace?.sendRatePerHour ?? 100) / 60);
   const hasToken = await acquireToken(payload.workspaceId, ratePerMinute);
@@ -96,21 +96,54 @@ async function handleSend(
     return;
   }
 
-  // 4. Send via SendGrid
+  // 4. Send via Brevo
   try {
-    const result = await sendEmail(payload);
+    const result = await sendEmail(payload, workspace?.brevoApiKey);
     await finalizeSend(payload, 'sent', result.providerMessageId);
     await decrementAndCheck(payload.campaignId, payload.workspaceId);
     log.info('Email sent successfully');
   } catch (err) {
     const kind = classifyError(err);
-    log.warn({ err, kind, attempt: payload.attempt }, 'Send failed');
 
-    if (kind === 'permanent') {
+    if (kind === 'auth') {
+      // API key is invalid — fail the entire campaign immediately so the UI shows
+      // 'failed' rather than eventually transitioning to 'sent' with 0 deliveries.
+      log.error(
+        { campaignId: payload.campaignId },
+        'Brevo API key rejected (401/403) — check BREVO_API_KEY, marking campaign failed',
+      );
+      const updated = await prisma.campaign.updateMany({
+        where: { id: payload.campaignId, status: 'sending' },
+        data: { status: 'failed' },
+      });
+      if (updated.count > 0) {
+        const campaign = await prisma.campaign.findUnique({
+          where: { id: payload.campaignId },
+          select: { name: true, workspaceId: true },
+        });
+        if (campaign) {
+          await prisma.notification.create({
+            data: {
+              workspaceId: campaign.workspaceId,
+              type: 'campaign_failed',
+              title: 'Campaign failed',
+              body: `"${campaign.name}" could not be sent. Check your Brevo API key in Settings.`,
+              metadata: { campaignId: payload.campaignId },
+            },
+          });
+        }
+      }
       await finalizeSend(payload, 'failed', null);
-      await decrementAndCheck(payload.campaignId, payload.workspaceId);
+      // Do not decrement: campaign is already failed; remaining queued messages
+      // will also hit 401, hit the same updateMany (idempotent), and mark their sends failed.
     } else {
-      await routeToRetry(producer, { ...payload, attempt: payload.attempt + 1 }, kind, String(err));
+      log.warn({ err, kind, attempt: payload.attempt }, 'Send failed');
+      if (kind === 'permanent') {
+        await finalizeSend(payload, 'failed', null);
+        await decrementAndCheck(payload.campaignId, payload.workspaceId);
+      } else {
+        await routeToRetry(producer, { ...payload, attempt: payload.attempt + 1 }, kind, String(err));
+      }
     }
   }
 
@@ -124,7 +157,7 @@ async function finalizeSend(
 ): Promise<void> {
   await prisma.send.updateMany({
     where: { campaignId: payload.campaignId, contactId: payload.contactId, status: 'pending' },
-    data: { status, providerMessageId, sentAt: status === 'sent' ? new Date() : undefined },
+    data: { status, providerMessageId, ...(status === 'sent' ? { sentAt: new Date() } : {}) },
   });
 }
 

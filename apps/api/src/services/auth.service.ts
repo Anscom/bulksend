@@ -6,7 +6,7 @@ import { redis } from '../redis/client.js';
 import { sessKey, userSessionsKey, jwtBlocklistKey } from '../redis/keys.js';
 import { env } from '../lib/env.js';
 import { Errors } from '../lib/errors.js';
-import type { AuthTokens } from '@bulksend/shared';
+import type { AuthTokens, LoginResponse, WorkspaceSummary } from '@bulksend/shared';
 
 const SALT_ROUNDS = 12;
 const SESSION_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
@@ -38,17 +38,54 @@ export async function signup(
   return issueTokens(user.id, workspace.id, user.email, user.role);
 }
 
-export async function login(email: string, password: string): Promise<AuthTokens> {
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: { workspace: true },
-  });
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw Errors.unauthorized();
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw Errors.unauthorized();
 
-  return issueTokens(user.id, user.workspaceId, user.email, user.role);
+  const tokens = issueTokens(user.id, user.workspaceId, user.email, user.role);
+
+  // Collect all workspaces: primary + any granted via WorkspaceAccess
+  const [primaryWs, accesses] = await Promise.all([
+    prisma.workspace.findUniqueOrThrow({
+      where: { id: user.workspaceId },
+      select: { id: true, name: true, slug: true, plan: true },
+    }),
+    prisma.workspaceAccess.findMany({
+      where: { userId: user.id },
+      include: { workspace: { select: { id: true, name: true, slug: true, plan: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ]);
+
+  const seen = new Set([primaryWs.id]);
+  const workspaces: WorkspaceSummary[] = [
+    { id: primaryWs.id, name: primaryWs.name, slug: primaryWs.slug, plan: primaryWs.plan },
+    ...accesses
+      .filter(a => !seen.has(a.workspace.id) && seen.add(a.workspace.id))
+      .map(a => ({ id: a.workspace.id, name: a.workspace.name, slug: a.workspace.slug, plan: a.workspace.plan })),
+  ];
+
+  return { ...tokens, workspaces };
+}
+
+export async function switchWorkspace(userId: string, targetWorkspaceId: string): Promise<AuthTokens> {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+  // Switching to their primary workspace
+  if (user.workspaceId === targetWorkspaceId) {
+    return issueTokens(user.id, user.workspaceId, user.email, user.role);
+  }
+
+  // Switching to a workspace granted via WorkspaceAccess
+  const access = await prisma.workspaceAccess.findFirst({
+    where: { userId, workspaceId: targetWorkspaceId },
+  });
+  if (!access) throw Errors.forbidden();
+
+  return issueTokens(user.id, targetWorkspaceId, user.email, access.role);
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {
@@ -60,7 +97,7 @@ export async function refresh(refreshToken: string): Promise<AuthTokens> {
   }
 
   const sessionRaw = await redis.hgetall(sessKey(payload.sid));
-  if (!sessionRaw['userId']) throw Errors.unauthorized();
+  if (!sessionRaw || !sessionRaw['userId']) throw Errors.unauthorized();
 
   const hashedToken = await bcrypt.hash(refreshToken, 4);
   const stored = sessionRaw['rtHash'];
@@ -71,14 +108,14 @@ export async function refresh(refreshToken: string): Promise<AuthTokens> {
   }
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: payload.userId } });
-  await redis.hset(sessKey(payload.sid), 'rtHash', hashedToken);
+  await redis.hset(sessKey(payload.sid), { rtHash: hashedToken });
 
   return issueTokens(user.id, user.workspaceId, user.email, user.role, payload.sid);
 }
 
 export async function logout(jti: string, userId: string, sid: string): Promise<void> {
   // Blocklist the access token (short-lived, so TTL of 15m is fine)
-  await redis.set(jwtBlocklistKey(jti), '1', 'EX', 15 * 60);
+  await redis.set(jwtBlocklistKey(jti), '1', { ex: 15 * 60 });
   await redis.del(sessKey(sid));
   await redis.srem(userSessionsKey(userId), sid);
 }
@@ -102,13 +139,11 @@ function issueTokens(
   });
 
   // Store session in Redis
-  redis
-    .multi()
-    .hset(sessKey(sid), { userId, workspaceId, role })
-    .expire(sessKey(sid), SESSION_TTL)
-    .sadd(userSessionsKey(userId), sid)
-    .exec()
-    .catch(console.error);
+  const pipeline = redis.pipeline();
+  pipeline.hset(sessKey(sid), { userId, workspaceId, role });
+  pipeline.expire(sessKey(sid), SESSION_TTL);
+  pipeline.sadd(userSessionsKey(userId), sid);
+  pipeline.exec().catch(console.error);
 
   return { accessToken, refreshToken, expiresIn: 15 * 60 };
 }

@@ -27,6 +27,6 @@ export async function acquireToken(
 ): Promise<boolean> {
   const key = `tb:${workspaceId}`;
   const now = Date.now();
-  const result = await redis.eval(ACQUIRE_SCRIPT, 1, key, limitPerMinute, WINDOW_MS, now);
+  const result = await redis.eval(ACQUIRE_SCRIPT, [key], [limitPerMinute, WINDOW_MS, now]);
   return result === 1;
 }

@@ -53,4 +53,14 @@ router.post('/logout', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+const SwitchSchema = z.object({ workspaceId: z.string().uuid() });
+
+router.post('/switch', authenticate, validate('body', SwitchSchema), async (req, res, next) => {
+  try {
+    const { workspaceId } = req.body as z.infer<typeof SwitchSchema>;
+    const tokens = await authService.switchWorkspace(req.user!.userId, workspaceId);
+    res.json({ ok: true, data: tokens });
+  } catch (err) { next(err); }
+});
+
 export default router;

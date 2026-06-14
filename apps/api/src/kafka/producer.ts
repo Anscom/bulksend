@@ -1,12 +1,22 @@
-import { Kafka, type Producer } from 'kafkajs';
+import { Kafka, type Producer, type KafkaConfig } from 'kafkajs';
 import { env } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
 
-const kafka = new Kafka({
+const config: KafkaConfig = {
   clientId: 'bulksend-api',
   brokers: env.KAFKA_BROKERS.split(','),
   retry: { retries: 5 },
-});
+  ssl: env.KAFKA_SSL === 'true',
+  ...(env.KAFKA_SASL_USERNAME && {
+    sasl: {
+      mechanism: 'scram-sha-256',
+      username: env.KAFKA_SASL_USERNAME,
+      password: env.KAFKA_SASL_PASSWORD,
+    },
+  }),
+};
+
+const kafka = new Kafka(config);
 
 let _producer: Producer | null = null;
 

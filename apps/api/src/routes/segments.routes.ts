@@ -21,8 +21,10 @@ const CreateSchema = z.object({
 
 router.get('/', async (req, res, next) => {
   try {
-    const segments = await svc.listSegments(req.user!.workspaceId);
-    res.json({ ok: true, data: segments });
+    const page     = Math.max(1, parseInt(String(req.query['page']     ?? '1'),  10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query['pageSize'] ?? '50'), 10) || 50));
+    const result   = await svc.listSegments(req.user!.workspaceId, page, pageSize);
+    res.json({ ok: true, data: result });
   } catch (err) { next(err); }
 });
 
@@ -30,6 +32,15 @@ router.get('/:id', async (req, res, next) => {
   try {
     const segment = await svc.getSegment(req.params['id']!, req.user!.workspaceId);
     res.json({ ok: true, data: segment });
+  } catch (err) { next(err); }
+});
+
+router.get('/:id/contacts', async (req, res, next) => {
+  try {
+    const page     = Math.max(1, parseInt(String(req.query['page']  ?? '1'),  10) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query['pageSize'] ?? '50'), 10) || 50));
+    const result   = await svc.getSegmentContacts(req.params['id']!, req.user!.workspaceId, page, pageSize);
+    res.json({ ok: true, data: result });
   } catch (err) { next(err); }
 });
 

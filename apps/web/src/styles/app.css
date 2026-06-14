@@ -41,6 +41,11 @@
   --shadow: 0 1px 3px oklch(0.4 0.03 265/.07), 0 8px 24px oklch(0.4 0.03 265/.06);
   --shadow-pop: 0 6px 16px oklch(0.3 0.03 265/.1), 0 20px 50px oklch(0.3 0.03 265/.14);
   --sidebar-w: 250px;
+
+  /* Aliases used across components */
+  --surface:  #fff;
+  --border:   var(--line);
+  --text:     var(--ink);
 }
 *{ box-sizing: border-box; margin: 0; padding: 0; }
 html,body{ height: 100%; }
@@ -117,6 +122,27 @@ input{ font-family: inherit; }
 .icon-btn{ width: 38px; height: 38px; border-radius: var(--r); display: grid; place-items: center; color: var(--ink-2); border: 1px solid transparent; transition: background .13s, border-color .13s; position: relative; }
 .icon-btn:hover{ background: var(--paper); border-color: var(--line); }
 .icon-btn .dot{ position: absolute; top: 9px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--coral); border: 2px solid var(--bg); }
+
+/* Notifications dropdown */
+.notif-dropdown{ position: absolute; top: calc(100% + 8px); right: 0; width: 360px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-pop); z-index: 100; overflow: hidden; }
+.notif-header{ display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--line-2); }
+.notif-title{ font-family: var(--display); font-size: 14px; font-weight: 600; color: var(--ink); }
+.notif-mark-read{ font-size: 12px; color: var(--indigo); background: none; border: none; cursor: pointer; padding: 0; }
+.notif-mark-read:hover{ text-decoration: underline; }
+.notif-list{ max-height: 380px; overflow-y: auto; }
+.notif-empty{ padding: 32px 16px; text-align: center; font-size: 13px; color: var(--slate); }
+.notif-item{ display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line-2); position: relative; transition: background .1s; }
+.notif-item:last-child{ border-bottom: none; }
+.notif-item:hover{ background: var(--bg); }
+.notif-item.unread{ background: var(--indigo-tint); }
+.notif-item.unread:hover{ background: var(--indigo-tint2); }
+.notif-icon{ width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+.notif-content{ flex: 1; min-width: 0; }
+.notif-item-title{ font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.notif-item-body{ font-size: 12px; color: var(--slate); line-height: 1.4; margin-bottom: 4px; }
+.notif-time{ font-size: 11px; color: var(--faint); font-family: var(--mono); }
+.notif-delete{ width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; color: var(--faint); background: none; border: none; cursor: pointer; flex: none; line-height: 1; padding: 0; }
+.notif-delete:hover{ background: var(--line-2); color: var(--slate); }
 .mobile-only{ display: none; }
 
 .view-wrap{ flex: 1; overflow-y: auto; min-height: 0; }
@@ -405,6 +431,26 @@ textarea.inp{ resize: vertical; min-height: 150px; line-height: 1.6; }
 .radio-card.selected .rc-dot::after{ content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--indigo); }
 .radio-card .rc-name{ font-weight: 600; font-size: 14px; }
 .radio-card .rc-desc{ font-size: 12.5px; color: var(--slate); margin-top: 8px; }
+
+/* recipients panel */
+.rcpt-panel{ border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; margin-top: 4px; }
+.rcpt-search{ display: flex; align-items: center; gap: 9px; padding: 0 12px; height: 38px; border-bottom: 1px solid var(--line); background: var(--paper); }
+.rcpt-search svg{ color: var(--faint); flex: none; }
+.rcpt-search input{ border: none; outline: none; background: none; font-size: 13px; width: 100%; color: var(--ink); }
+.rcpt-list{ max-height: 260px; overflow-y: auto; background: var(--paper); }
+.rcpt-row{ display: flex; align-items: center; gap: 11px; padding: 9px 13px; border-bottom: 1px solid var(--line-2); cursor: pointer; transition: background .1s; }
+.rcpt-row:last-child{ border-bottom: none; }
+.rcpt-row:hover{ background: var(--bg); }
+.rcpt-row.excluded{ opacity: 0.45; background: var(--bg); }
+.rcpt-av{ width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; flex: none; letter-spacing: 0.01em; }
+.rcpt-info{ flex: 1; min-width: 0; }
+.rcpt-name{ font-size: 13px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rcpt-email{ font-size: 11.5px; color: var(--slate); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.rcpt-check{ width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--line); flex: none; display: grid; place-items: center; transition: border-color .12s, background .12s; }
+.rcpt-check.on{ border-color: var(--indigo); background: var(--indigo); }
+.rcpt-footer{ display: flex; align-items: center; justify-content: space-between; padding: 8px 13px; background: var(--bg); border-top: 1px solid var(--line); font-size: 12px; color: var(--slate); }
+.rcpt-footer b{ color: var(--ink); }
+.rcpt-empty{ padding: 24px; text-align: center; font-size: 13px; color: var(--slate-3); font-family: var(--mono); }
 
 /* review */
 .review-list{ display: flex; flex-direction: column; }
@@ -783,6 +829,53 @@ textarea.inp{ resize: vertical; min-height: 150px; line-height: 1.6; }
 .im-item:hover { background: var(--bg-2); }
 .im-label { font-size: 13px; font-weight: 500; color: var(--ink); font-family: var(--body); }
 .im-desc { font-size: 11px; color: var(--slate-3); font-family: var(--mono); margin-top: 1px; }
+
+/* ── Undo / Redo labeled buttons ── */
+.tb-undo-btn { width: auto; padding: 0 9px; gap: 5px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; color: var(--slate); font-family: var(--sans); }
+.tb-undo-btn:hover { background: var(--line-2); color: var(--ink); }
+.tb-undo-btn span { font-size: 12px; }
+
+/* ── Heading style dropdown ── */
+.heading-wrap { position: relative; }
+.tb-heading-btn { min-width: 44px; width: auto; padding: 0 8px; gap: 5px; font-family: var(--mono); font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.heading-menu {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  min-width: 160px; z-index: 200; padding: 5px; overflow: hidden;
+}
+.hm-item {
+  display: block; width: 100%; text-align: left; padding: 8px 12px;
+  border: none; border-radius: 6px; background: transparent; cursor: pointer;
+  color: var(--ink); transition: background .1s;
+}
+.hm-item:hover { background: var(--bg-2); }
+.hm-item.hm-active { background: var(--indigo-tint2); color: var(--indigo-600); }
+.hm-p  { font-size: 13.5px; }
+.hm-h1 { font-size: 20px; font-weight: 800; font-family: var(--display); letter-spacing: -0.02em; }
+.hm-h2 { font-size: 16px; font-weight: 700; font-family: var(--display); }
+.hm-h3 { font-size: 13.5px; font-weight: 700; font-family: var(--display); }
+
+/* ── Font size dropdown ── */
+.fs-wrap { position: relative; }
+.tb-fs-btn { min-width: 42px; width: auto; padding: 0 7px; gap: 4px; font-family: var(--mono); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.fs-menu {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  min-width: 130px; z-index: 200; padding: 5px; overflow: hidden;
+}
+.fs-item {
+  display: block; width: 100%; text-align: left; padding: 8px 12px;
+  border: none; border-radius: 6px; background: transparent; cursor: pointer;
+  color: var(--ink); transition: background .1s; font-family: var(--sans);
+}
+.fs-item:hover { background: var(--bg-2); }
+
+/* heading styles in the rich editor */
+.rich-editor h1 { font-family: var(--display); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; margin: 20px 0 10px; color: var(--ink); }
+.rich-editor h2 { font-family: var(--display); font-size: 21px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; margin: 18px 0 8px; color: var(--ink); }
+.rich-editor h3 { font-family: var(--display); font-size: 16px; font-weight: 700; line-height: 1.3; margin: 14px 0 6px; color: var(--ink); }
 
 /* ============================================================================
    RESPONSIVE

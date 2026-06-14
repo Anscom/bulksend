@@ -11,7 +11,10 @@ import { CampaignComposerPage } from '../pages/app/CampaignComposerPage.js';
 import { ContactsPage } from '../pages/app/ContactsPage.js';
 import { SettingsPage } from '../pages/app/SettingsPage.js';
 import { UpgradePage } from '../pages/app/UpgradePage.js';
-import { PlaceholderPage } from '../pages/app/PlaceholderPage.js';
+import { SegmentsPage } from '../pages/app/SegmentsPage.js';
+import { SegmentDetailPage } from '../pages/app/SegmentDetailPage.js';
+import { AnalyticsPage } from '../pages/app/AnalyticsPage.js';
+import { EventStreamPage } from '../pages/app/EventStreamPage.js';
 
 export function AppRoutes() {
   return (
@@ -31,18 +34,10 @@ export function AppRoutes() {
           <Route path="/campaigns/new" element={<CampaignComposerPage />} />
           <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
           <Route path="/contacts" element={<ContactsPage />} />
-          <Route
-            path="/segments"
-            element={<PlaceholderPage crumb="Acme Marketing" title="Segments" description="Build dynamic audiences with filter rules. Segment counts update automatically as contacts change." />}
-          />
-          <Route
-            path="/analytics"
-            element={<PlaceholderPage crumb="Acme Marketing" title="Analytics" description="Deep-dive into campaign performance across time, segments, and sending domains." />}
-          />
-          <Route
-            path="/events"
-            element={<PlaceholderPage crumb="Acme Marketing" title="Event Stream" description="Live feed of every open, click, bounce, and unsubscribe event — queryable and exportable." />}
-          />
+          <Route path="/segments" element={<SegmentsPage />} />
+          <Route path="/segments/:id" element={<SegmentDetailPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/events" element={<EventStreamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/upgrade" element={<UpgradePage />} />
           <Route path="/app" element={<Navigate to="/dashboard" replace />} />

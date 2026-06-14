@@ -46,39 +46,61 @@ enum EventType {
 }
 
 model Workspace {
-  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name              String
-  slug              String     @unique
-  plan              String     @default("free")
-  sendRatePerHour   Int        @default(100) @map("send_rate_per_hour")
-  createdAt         DateTime   @default(now()) @map("created_at")
-  updatedAt         DateTime   @updatedAt @map("updated_at")
+  slug              String            @unique
+  plan              String            @default("free")
+  sendRatePerHour   Int               @default(100) @map("send_rate_per_hour")
+  stripeCustomerId     String?           @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?           @unique @map("stripe_subscription_id")
+  brevoApiKey          String?           @map("brevo_api_key")
+  senderEmail          String?           @map("sender_email")
+  senderName           String?           @map("sender_name")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
   users             User[]
+  workspaceAccess   WorkspaceAccess[]
   contacts          Contact[]
   tags              Tag[]
   segments          Segment[]
   campaigns         Campaign[]
   sends             Send[]
   emailEvents       EmailEvent[]
+  notifications     Notification[]
 
   @@map("workspaces")
 }
 
 model User {
-  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId   String     @map("workspace_id") @db.Uuid
-  email         String     @unique
-  name          String
-  passwordHash  String     @map("password_hash")
-  role          UserRole   @default(member)
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId     String            @map("workspace_id") @db.Uuid
+  email           String            @unique
+  name            String
+  passwordHash    String            @map("password_hash")
+  role            UserRole          @default(member)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
 
-  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceAccess WorkspaceAccess[]
 
   @@index([workspaceId])
   @@map("users")
+}
+
+model WorkspaceAccess {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  role        UserRole  @default(member)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_access")
 }
 
 model Contact {
@@ -214,4 +236,20 @@ model EmailEvent {
   @@index([campaignId, type, occurredAt])
   @@index([workspaceId, occurredAt])
   @@map("email_events")
+}
+
+model Notification {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  type        String
+  title       String
+  body        String
+  read        Boolean   @default(false)
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, read, createdAt])
+  @@map("notifications")
 }

@@ -18,11 +18,10 @@
     "@bulksend/logger": "workspace:*",
     "@bulksend/shared": "workspace:*",
     "@prisma/client": "^5.22.0",
-    "@sendgrid/mail": "^8.1.4",
+    "@upstash/redis": "^1.38.0",
     "kafkajs": "^2.2.4",
-    "ioredis": "^5.4.2",
-    "zod": "^3.24.1",
-    "uuid": "^11.0.3"
+    "uuid": "^11.0.3",
+    "zod": "^3.24.1"
   },
   "prisma": {
     "schema": "../api/prisma/schema.prisma"

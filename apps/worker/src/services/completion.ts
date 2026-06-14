@@ -30,6 +30,21 @@ async function closeCampaign(campaignId: string, workspaceId: string): Promise<v
 
   if (updated.count > 0) {
     logger.info({ campaignId }, 'Campaign marked as sent');
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { name: true, totalRecipients: true },
+    });
+    if (campaign) {
+      await prisma.notification.create({
+        data: {
+          workspaceId,
+          type: 'campaign_sent',
+          title: 'Campaign sent',
+          body: `"${campaign.name}" was sent to ${campaign.totalRecipients.toLocaleString()} recipient${campaign.totalRecipients !== 1 ? 's' : ''}.`,
+          metadata: { campaignId },
+        },
+      });
+    }
   }
 }
 

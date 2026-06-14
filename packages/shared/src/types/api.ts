@@ -47,6 +47,17 @@ export interface AuthTokens {
   expiresIn: number;
 }
 
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+}
+
+export interface LoginResponse extends AuthTokens {
+  workspaces: WorkspaceSummary[];
+}
+
 // Campaigns
 export interface CreateCampaignRequest {
   name: string;

@@ -4,36 +4,36 @@ import { Topics } from '../kafka/topics.js';
 import type { EmailEventPayload } from '@bulksend/shared';
 
 /**
- * Handles incoming SendGrid delivery events (webhook).
+ * Handles incoming Brevo delivery events (webhook).
  * Normalizes them and produces to email.events for async DB writes.
  */
-export async function processSendGridWebhook(
+export async function processBrevoWebhook(
   events: Array<Record<string, unknown>>,
 ): Promise<void> {
   const producer = await getProducer();
 
   const messages = events
     .map((raw) => {
-      const type = mapSendGridEvent(String(raw['event'] ?? ''));
+      const type = mapBrevoEvent(String(raw['event'] ?? ''));
       if (!type) return null;
 
-      const providerMessageId = String(raw['sg_message_id'] ?? '');
-      const providerEventId = String(raw['sg_event_id'] ?? '');
+      const providerMessageId = String(raw['messageId'] ?? '');
+      const providerEventId = String(raw['ts_epoch'] ?? raw['ts'] ?? Date.now());
 
       return {
         key: providerMessageId,
         value: JSON.stringify({
-          sendId: '', // resolved by worker via providerMessageId lookup
+          sendId: '',
           campaignId: '',
           workspaceId: '',
           contactId: '',
           type,
           providerEventId,
           metadata: raw,
-          occurredAt: new Date(Number(raw['timestamp'] ?? 0) * 1000).toISOString(),
-          providerMessageId, // worker uses this to look up the send
-        } satisfies Omit<EmailEventPayload, 'sendId' | 'campaignId' | 'workspaceId' | 'contactId'> & {
-          providerMessageId: string;
+          occurredAt: raw['ts_epoch']
+            ? new Date(Number(raw['ts_epoch'])).toISOString()
+            : new Date(Number(raw['ts'] ?? 0) * 1000).toISOString(),
+          providerMessageId,
         }),
       };
     })
@@ -44,16 +44,15 @@ export async function processSendGridWebhook(
   await producer.send({ topic: Topics.EMAIL_EVENTS, messages });
 }
 
-function mapSendGridEvent(
-  event: string,
-): EmailEventPayload['type'] | null {
+function mapBrevoEvent(event: string): EmailEventPayload['type'] | null {
   const map: Record<string, EmailEventPayload['type']> = {
-    delivered: 'delivered',
-    open: 'opened',
-    click: 'clicked',
-    bounce: 'bounced',
-    unsubscribe: 'unsubscribed',
-    spamreport: 'spam',
+    delivered:    'delivered',
+    opened:       'opened',
+    clicked:      'clicked',
+    hardBounce:   'bounced',
+    softBounce:   'bounced',
+    unsubscribed: 'unsubscribed',
+    spamReported: 'spam',
   };
   return map[event] ?? null;
 }

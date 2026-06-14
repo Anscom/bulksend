@@ -44,9 +44,9 @@ async function rebuildSuppressionCache(workspaceId: string): Promise<void> {
 
   if (suppressed.length === 0) return;
 
-  await redis
-    .multi()
-    .sadd(suppKey(workspaceId), ...suppressed.map((c) => c.email))
-    .set(loadedKey(workspaceId), '1')
-    .exec();
+  const emails = suppressed.map((c) => c.email) as [string, ...string[]];
+  const pipeline = redis.pipeline();
+  pipeline.sadd(suppKey(workspaceId), ...emails);
+  pipeline.set(loadedKey(workspaceId), '1');
+  await pipeline.exec();
 }

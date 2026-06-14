@@ -1,6 +1,6 @@
 import type { Consumer, Producer } from 'kafkajs';
-import { Topics, CONSUMER_GROUPS } from '@bulksend/shared';
-import type { CampaignDispatchPayload, EmailSendPayload } from '@bulksend/shared';
+import { Topics, CONSUMER_GROUPS, buildSegmentContactFilter } from '@bulksend/shared';
+import type { CampaignDispatchPayload, EmailSendPayload, RawFilter } from '@bulksend/shared';
 import { prisma } from '../db/client.js';
 import { redis } from '../redis/client.js';
 import { logger } from '../lib/logger.js';
@@ -38,6 +38,14 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
           ? await prisma.segment.findUnique({ where: { id: campaign.segmentId } })
           : null;
 
+        const segmentFilters = segment
+          ? (segment.filters as unknown as RawFilter[])
+          : [];
+        const baseContactWhere = {
+          ...buildSegmentContactFilter(workspaceId, segmentFilters),
+          status: 'subscribed', // always enforce — never send to unsubscribed contacts
+        };
+
         let cursor: string | undefined;
         let totalFannedOut = 0;
         const allMessages: Array<{ key: string; value: string }> = [];
@@ -46,11 +54,9 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
         do {
           const contacts = await prisma.contact.findMany({
             where: {
-              workspaceId,
-              status: 'subscribed',
-              deletedAt: null,
+              ...baseContactWhere,
               ...(cursor ? { id: { gt: cursor } } : {}),
-            },
+            } as never,
             orderBy: { id: 'asc' },
             take: CONTACT_PAGE_SIZE,
             select: { id: true, email: true, firstName: true, lastName: true },
@@ -58,12 +64,15 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
 
           if (contacts.length === 0) break;
 
-          // Bulk-insert sends rows (idempotent via ON CONFLICT DO NOTHING)
-          await prisma.$executeRaw`
-            INSERT INTO sends (id, workspace_id, campaign_id, contact_id, status)
-            SELECT gen_random_uuid(), ${workspaceId}::uuid, ${campaignId}::uuid, unnest(ARRAY[${contacts.map((c) => c.id).join(',')}]::uuid[]), 'pending'::send_status
-            ON CONFLICT (campaign_id, contact_id) DO NOTHING
-          `;
+          // Bulk-insert sends rows (idempotent — skipDuplicates = ON CONFLICT DO NOTHING)
+          await prisma.send.createMany({
+            data: contacts.map(contact => ({
+              workspaceId,
+              campaignId,
+              contactId: contact.id,
+            })),
+            skipDuplicates: true,
+          });
 
           for (const contact of contacts) {
             const sendPayload: EmailSendPayload = {
