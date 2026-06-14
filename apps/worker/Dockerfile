@@ -7,7 +7,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/logger/package.json ./packages/logger/
 COPY apps/worker/package.json ./apps/worker/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
@@ -15,6 +15,7 @@ COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_module
 COPY --from=deps /app/packages/logger/node_modules ./packages/logger/node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY . .
+RUN cd apps/api && npx prisma generate
 RUN pnpm turbo build --filter=@bulksend/worker
 
 FROM node:20-alpine AS runner
