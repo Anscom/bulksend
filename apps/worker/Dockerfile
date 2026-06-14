@@ -15,6 +15,15 @@ COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_module
 COPY --from=deps /app/packages/logger/node_modules ./packages/logger/node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY . .
+# Docker COPY follows symlinks, so workspace symlinks become plain dirs with
+# only package.json. Recreate them so dist/ is visible after each package builds.
+RUN mkdir -p node_modules/@bulksend apps/worker/node_modules/@bulksend && \
+    rm -rf node_modules/@bulksend/shared node_modules/@bulksend/logger \
+           apps/worker/node_modules/@bulksend/shared apps/worker/node_modules/@bulksend/logger && \
+    ln -s /app/packages/shared node_modules/@bulksend/shared && \
+    ln -s /app/packages/logger node_modules/@bulksend/logger && \
+    ln -s /app/packages/shared apps/worker/node_modules/@bulksend/shared && \
+    ln -s /app/packages/logger apps/worker/node_modules/@bulksend/logger
 RUN cd apps/worker && npx prisma generate
 RUN pnpm --filter=@bulksend/logger run build
 RUN pnpm --filter=@bulksend/shared run build
