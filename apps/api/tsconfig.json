@@ -4,11 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": false,
-    "declarationMap": false,
-    "paths": {
-      "@bulksend/shared": ["../../packages/shared/dist/index.js"],
-      "@bulksend/logger": ["../../packages/logger/dist/index.js"]
-    }
+    "declarationMap": false
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"],
