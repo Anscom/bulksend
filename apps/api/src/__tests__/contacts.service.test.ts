@@ -37,7 +37,7 @@ describe('listContacts — cursor pagination', () => {
 
     await listContacts('ws-1', 50, undefined, undefined, 'c-1');
 
-    const [call] = mockFindMany.mock.calls;
+    const call = mockFindMany.mock.calls[0]!;
     expect(call[0].where).toMatchObject({ id: { gt: 'c-1' } });
     expect(call[0].orderBy).toEqual({ id: 'asc' });
   });
@@ -47,7 +47,7 @@ describe('listContacts — cursor pagination', () => {
 
     await listContacts('ws-1', 50);
 
-    const [call] = mockFindMany.mock.calls;
+    const call = mockFindMany.mock.calls[0]!;
     expect(call[0].where).not.toHaveProperty('id');
   });
 

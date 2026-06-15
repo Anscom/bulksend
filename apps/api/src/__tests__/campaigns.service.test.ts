@@ -55,7 +55,7 @@ describe('sendCampaign', () => {
     await sendCampaign('camp-1', 'ws-1', 'ik-abc');
 
     expect(mockSend).toHaveBeenCalledOnce();
-    const [call] = mockSend.mock.calls;
+    const call = mockSend.mock.calls[0]!;
     expect(call[0].topic).toBe('campaign.dispatch');
     expect(mockRedis.set).toHaveBeenCalledWith('ik:send:ws-1:ik-abc', 'camp-1', { ex: 86400 });
   });
