@@ -175,7 +175,7 @@ export function DashboardPage() {
       analyticsApi.getOverview(),
       analyticsApi.getVolume(30),
       campaignsApi.list(1, 5),
-      contactsApi.list(1, 1),
+      contactsApi.list(1),
       segmentsApi.list(1, 1),
     ]).then(([ov, vol, clist, contacts, segments]) => {
       setOverview(ov);

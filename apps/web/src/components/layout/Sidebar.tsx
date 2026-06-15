@@ -49,7 +49,7 @@ export function Sidebar({ onClose }: SidebarProps) {
     // Fetch all nav counts in parallel
     Promise.all([
       campaignsApi.list(1, 1),
-      contactsApi.list(1, 1),
+      contactsApi.list(1),
       segmentsApi.list(1, 1),
       analyticsApi.getUsage(),
     ]).then(([campaigns, contacts, segments, usage]) => {

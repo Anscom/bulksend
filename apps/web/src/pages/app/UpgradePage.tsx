@@ -172,7 +172,7 @@ export function UpgradePage() {
   });
 
   useEffect(() => {
-    Promise.all([contactsApi.list(1, 1), analyticsApi.getUsage()]).then(([contacts, usage]) => {
+    Promise.all([contactsApi.list(1), analyticsApi.getUsage()]).then(([contacts, usage]) => {
       setUsageData({
         contacts: { used: contacts.total, limit: currentPlan === 'free' ? 5000 : 100_000 },
         sendRate: { used: usage.sendsThisHour, limit: usage.planLimit },
