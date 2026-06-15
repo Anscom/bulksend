@@ -1,4 +1,5 @@
 import type { Consumer, Producer } from 'kafkajs';
+import { markUp, markDown } from '../lib/health.js';
 import { Topics } from '@bulksend/shared';
 import type { EmailSendPayload, EmailSendRetryPayload } from '@bulksend/shared';
 import { prisma } from '../db/client.js';
@@ -18,6 +19,7 @@ export async function startSender(
   await consumer.connect();
   await consumer.subscribe({ topics, fromBeginning: false });
 
+  consumer.on(consumer.events.CRASH, () => markDown('sender'));
   await consumer.run({
     autoCommit: false,
     partitionsConsumedConcurrently: 4,
@@ -26,10 +28,13 @@ export async function startSender(
 
       // Retry topics: skip until availableAt
       if ('availableAt' in raw && raw.availableAt) {
-        if (new Date(raw.availableAt) > new Date()) {
-          // Pause partition briefly — don't commit so we re-process later
+        const delayMs = new Date(raw.availableAt).getTime() - Date.now();
+        if (delayMs > 0) {
+          // Pause partition for the actual remaining delay (capped at 30s so we re-check regularly).
+          // Don't commit offset — message will be re-read when the partition resumes.
+          const pauseDuration = Math.min(delayMs, 30_000);
           consumer.pause([{ topic, partitions: [partition] }]);
-          setTimeout(() => consumer.resume([{ topic, partitions: [partition] }]), 5000);
+          setTimeout(() => consumer.resume([{ topic, partitions: [partition] }]), pauseDuration);
           return;
         }
       }
@@ -37,6 +42,7 @@ export async function startSender(
       await handleSend(raw as EmailSendPayload, producer, topic, partition, message.offset, consumer);
     },
   });
+  markUp('sender');
 }
 
 async function handleSend(

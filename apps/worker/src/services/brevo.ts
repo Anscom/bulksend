@@ -1,12 +1,13 @@
 import { env } from '../lib/env.js';
 import type { EmailSendPayload } from '@bulksend/shared';
+import { escapeHtml, resolveMergeTags } from '../lib/merge-tags.js';
 
 export interface SendResult {
   providerMessageId: string;
 }
 
 export async function sendEmail(payload: EmailSendPayload, apiKey?: string | null): Promise<SendResult> {
-  const html = resolveMergeTags(payload.bodyHtml, payload.variables);
+  const html = resolveMergeTags(payload.bodyHtml, payload.variables, true);
   const text = resolveMergeTags(payload.bodyText, payload.variables);
   const subject = resolveMergeTags(payload.subject, payload.variables);
 
@@ -38,6 +39,3 @@ export async function sendEmail(payload: EmailSendPayload, apiKey?: string | nul
   return { providerMessageId: data.messageId };
 }
 
-function resolveMergeTags(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => vars[key] ?? '');
-}

@@ -7,13 +7,9 @@ import { Badge } from '../../components/ui/Badge.js';
 import { analyticsApi, type CampaignPerformanceRow } from '../../lib/api/analytics.js';
 import type { AnalyticsOverview, VolumePoint, CampaignStatus } from '@bulksend/shared';
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return n.toLocaleString();
-  return String(n);
-}
+import { formatNumber as fmt, formatPercent as _pct, formatDate as _fd } from '../../lib/utils/format.js';
 
-function pct(n: number): string { return `${n}%`; }
+function pct(n: number): string { return _pct(n); }
 
 function trendProp(delta: number): { direction: 'up' | 'down'; value: string } {
   return { direction: delta >= 0 ? 'up' : 'down', value: `${Math.abs(delta)}%` };
@@ -36,7 +32,7 @@ function formatDate(d: string | null): string {
   if (!d) return '—';
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return '—';
-  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return _fd(dt);
 }
 
 function RateBar({ value, color = 'var(--indigo)' }: { value: number; color?: string }) {

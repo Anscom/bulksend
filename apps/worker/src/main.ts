@@ -6,6 +6,8 @@ import { startDispatcher } from './consumers/dispatcher.js';
 import { startSender } from './consumers/sender.js';
 import { startEventWorker } from './consumers/event-worker.js';
 import { startDlqMonitor } from './consumers/dlq-monitor.js';
+import { startScheduler } from './lib/scheduler.js';
+import { allHealthy, healthState } from './lib/health.js';
 import { prisma } from './db/client.js';
 import { logger } from './lib/logger.js';
 import { env } from './lib/env.js';
@@ -53,17 +55,22 @@ async function main() {
     startDlqMonitor(dlqConsumer),
   ]);
 
+  const stopScheduler = startScheduler(producer);
   logger.info('All consumers running');
 
   // Health check server — uses WORKER_PORT to avoid conflicting with the API's PORT=3001
   const port = process.env['WORKER_PORT'] ?? process.env['PORT'] ?? 3002;
   const healthServer = http.createServer((_req, res) => {
-    res.writeHead(200).end(JSON.stringify({ ok: true, service: 'worker' }));
+    const healthy = allHealthy();
+    res.writeHead(healthy ? 200 : 503).end(
+      JSON.stringify({ ok: healthy, service: 'worker', consumers: healthState() }),
+    );
   });
   healthServer.listen(port, () => logger.info({ port }, 'Worker health server listening'));
 
   async function shutdown(signal: string) {
     logger.info({ signal }, 'Graceful shutdown');
+    stopScheduler();
     await Promise.all([
       dispatcConsumer.disconnect(),
       sendConsumer.disconnect(),

@@ -41,7 +41,7 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
     res.status(200).json({ received: true });
   } catch (err) {
     logger.error({ err }, 'Stripe webhook error');
-    res.status(400).send('Webhook error');
+    res.status(400).json({ ok: false, error: { code: 'WEBHOOK_ERROR', message: 'Webhook processing failed' } });
   }
 }
 

@@ -2,7 +2,16 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/authenticate.js';
+import { redis } from '../redis/client.js';
+import { AppError } from '../lib/errors.js';
 import * as authService from '../services/auth.service.js';
+
+async function loginRateLimit(ip: string): Promise<void> {
+  const key = `login:ip:${ip}`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, 900); // 15-minute window
+  if (count > 10) throw new AppError('RATE_LIMITED', 'Too many login attempts, try again later', 429);
+}
 
 const router = Router();
 
@@ -30,6 +39,7 @@ router.post('/signup', validate('body', SignupSchema), async (req, res, next) =>
 
 router.post('/login', validate('body', LoginSchema), async (req, res, next) => {
   try {
+    await loginRateLimit(req.ip ?? '');
     const { email, password } = req.body as z.infer<typeof LoginSchema>;
     const tokens = await authService.login(email, password);
     res.json({ ok: true, data: tokens });

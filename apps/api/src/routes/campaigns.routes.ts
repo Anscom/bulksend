@@ -5,6 +5,7 @@ import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import * as svc from '../services/campaigns.service.js';
+import { sendTestEmail } from '../services/email.service.js';
 
 const router = Router();
 router.use(authenticate, tenant);
@@ -23,7 +24,7 @@ const CreateSchema = z.object({
 });
 
 const ScheduleSchema = z.object({ scheduledAt: z.string().datetime() });
-const SendSchema = z.object({});
+const TestSendSchema = z.object({ email: z.string().email() });
 
 router.get('/', async (req, res, next) => {
   try {
@@ -98,6 +99,14 @@ router.post('/:id/resume', async (req, res, next) => {
     const idempotencyKey = req.headers['idempotency-key'] as string ?? `${req.params['id']}-resume-${Date.now()}`;
     const campaign = await svc.resumeCampaign(req.params['id'] as string, req.user!.workspaceId, idempotencyKey);
     res.json({ ok: true, data: campaign });
+  } catch (err) { next(err); }
+});
+
+router.post('/:id/test-send', validate('body', TestSendSchema), async (req, res, next) => {
+  try {
+    const { email } = req.body as z.infer<typeof TestSendSchema>;
+    await sendTestEmail(req.params['id'] as string, req.user!.workspaceId, email);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

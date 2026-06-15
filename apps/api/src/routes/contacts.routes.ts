@@ -20,13 +20,23 @@ const ImportSchema = z.object({
   mapping: z.record(z.string()),
 });
 
+router.get('/export', async (req, res, next) => {
+  try {
+    const status = req.query['status'] as string | undefined;
+    const csv = await svc.exportContacts(req.user!.workspaceId, status);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="contacts.csv"');
+    res.send(csv);
+  } catch (err) { next(err); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
-    const page = Number(req.query['page']) || 1;
     const pageSize = Number(req.query['pageSize']) || 50;
     const status = req.query['status'] as string | undefined;
     const search = req.query['search'] as string | undefined;
-    const result = await svc.listContacts(req.user!.workspaceId, page, pageSize, status, search);
+    const cursor = req.query['cursor'] as string | undefined;
+    const result = await svc.listContacts(req.user!.workspaceId, pageSize, status, search, cursor);
     res.json({ ok: true, data: result });
   } catch (err) { next(err); }
 });

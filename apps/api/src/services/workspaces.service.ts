@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../db/client.js';
 import { Errors, AppError } from '../lib/errors.js';
 import type { Workspace, User, WorkspaceSummary } from '@bulksend/shared';
+import { toWorkspace, toUser } from '../lib/mappers.js';
 
 const WORKSPACE_SELECT = {
   id: true, name: true, slug: true, plan: true, sendRatePerHour: true, brevoApiKey: true, senderEmail: true, senderName: true, createdAt: true, updatedAt: true,
@@ -16,7 +17,7 @@ const MEMBER_SELECT = {
 export async function getWorkspace(workspaceId: string): Promise<Workspace> {
   const ws = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: WORKSPACE_SELECT });
   if (!ws) throw Errors.notFound('Workspace');
-  return ws as unknown as Workspace;
+  return toWorkspace(ws);
 }
 
 export async function updateWorkspace(
@@ -28,7 +29,7 @@ export async function updateWorkspace(
     data: updates,
     select: WORKSPACE_SELECT,
   });
-  return ws as unknown as Workspace;
+  return toWorkspace(ws);
 }
 
 // ── Multi-workspace ────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ export async function createWorkspace(
     data: { userId: currentUserId, workspaceId: workspace.id, role: 'owner' },
   });
 
-  return { workspace: workspace as unknown as Workspace };
+  return { workspace: toWorkspace(workspace) };
 }
 
 // ── Members ────────────────────────────────────────────────────────────────
@@ -99,7 +100,7 @@ export async function listMembers(workspaceId: string): Promise<User[]> {
     .filter(a => !nativeIds.has(a.user.id))
     .map(a => ({ ...a.user, role: a.role }));
 
-  return [...nativeUsers, ...accessUsers] as unknown as User[];
+  return [...nativeUsers, ...accessUsers].map(u => toUser(u));
 }
 
 export async function addMember(
@@ -124,7 +125,7 @@ export async function addMember(
     await prisma.workspaceAccess.create({
       data: { userId: existingUser.id, workspaceId, role: data.role },
     });
-    return { ...existingUser, role: data.role } as unknown as User;
+    return toUser({ ...existingUser, role: data.role });
   }
 
   // Brand-new user — create with native membership
@@ -133,7 +134,7 @@ export async function addMember(
     data: { email: data.email, name: data.name, passwordHash, workspaceId, role: data.role },
     select: MEMBER_SELECT,
   });
-  return member as unknown as User;
+  return toUser(member);
 }
 
 export async function removeMember(

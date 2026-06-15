@@ -4,6 +4,7 @@ import { Topbar } from '../../components/layout/Topbar.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { segmentsApi } from '../../lib/api/segments.js';
 import type { Segment, Contact, ContactStatus } from '@bulksend/shared';
+import { formatDate as _formatDate } from '../../lib/utils/format.js';
 
 const PAGE_SIZE = 50;
 
@@ -27,7 +28,7 @@ function describeFilter(f: { field: string; operator: string; value: unknown }):
 
 function formatDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return _formatDate(new Date(d as string));
 }
 
 function initials(c: Contact): string {

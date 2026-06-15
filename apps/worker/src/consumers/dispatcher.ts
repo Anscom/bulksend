@@ -1,10 +1,19 @@
+import { createHmac } from 'crypto';
 import type { Consumer, Producer } from 'kafkajs';
-import { Topics, CONSUMER_GROUPS, buildSegmentContactFilter } from '@bulksend/shared';
+import { markUp, markDown } from '../lib/health.js';
+import { Topics, buildSegmentContactFilter } from '@bulksend/shared';
 import type { CampaignDispatchPayload, EmailSendPayload, RawFilter } from '@bulksend/shared';
 import { prisma } from '../db/client.js';
 import { redis } from '../redis/client.js';
 import { logger } from '../lib/logger.js';
-import { v4 as uuidv4 } from 'uuid';
+import { env } from '../lib/env.js';
+
+function unsubscribeUrl(workspaceId: string, email: string): string {
+  const token = createHmac('sha256', env.TRACKING_SECRET)
+    .update(`${workspaceId}:${email}`)
+    .digest('base64url');
+  return `${env.APP_URL}/t/u/${workspaceId}/${encodeURIComponent(email)}?token=${token}`;
+}
 
 const CONTACT_PAGE_SIZE = 500;
 const remainingKey = (id: string) => `campaign:${id}:remaining`;
@@ -20,6 +29,7 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
   await consumer.connect();
   await consumer.subscribe({ topic: Topics.CAMPAIGN_DISPATCH, fromBeginning: false });
 
+  consumer.on(consumer.events.CRASH, () => markDown('dispatcher'));
   await consumer.run({
     autoCommit: false,
     eachMessage: async ({ message, partition, topic }) => {
@@ -38,8 +48,9 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
           ? await prisma.segment.findUnique({ where: { id: campaign.segmentId } })
           : null;
 
-        const segmentFilters = segment
-          ? (segment.filters as unknown as RawFilter[])
+        const rawFilters = segment?.filters;
+        const segmentFilters = rawFilters
+          ? ((Array.isArray(rawFilters) ? rawFilters : typeof rawFilters === 'string' ? JSON.parse(rawFilters) : []) as RawFilter[])
           : [];
         const baseContactWhere = {
           ...buildSegmentContactFilter(workspaceId, segmentFilters),
@@ -74,9 +85,21 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
             skipDuplicates: true,
           });
 
+          // Fetch real send IDs — handles replay where sends already exist
+          const sends = await prisma.send.findMany({
+            where: { campaignId, contactId: { in: contacts.map(c => c.id) } },
+            select: { id: true, contactId: true },
+          });
+          const sendIdByContactId = new Map(sends.map(s => [s.contactId, s.id]));
+
           for (const contact of contacts) {
+            const sendId = sendIdByContactId.get(contact.id);
+            if (!sendId) {
+              log.error({ contactId: contact.id }, 'No send record found after insert, skipping');
+              continue;
+            }
             const sendPayload: EmailSendPayload = {
-              sendId: uuidv4(), // Will be replaced with real send ID from DB
+              sendId,
               campaignId,
               workspaceId,
               contactId: contact.id,
@@ -90,6 +113,7 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
                 first_name: contact.firstName ?? '',
                 last_name: contact.lastName ?? '',
                 email: contact.email,
+                unsubscribe_url: unsubscribeUrl(workspaceId, contact.email),
               },
               attempt: 1,
               idempotencyKey: `${campaignId}:${contact.id}:1`,
@@ -99,14 +123,19 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
           }
 
           cursor = contacts.at(-1)?.id;
-          totalFannedOut += contacts.length;
+          totalFannedOut = allMessages.length;
         } while (true);
 
-        // Seed completion counter before producing (prevents race where worker finishes before counter is set)
+        // Seed counter before produce to prevent race where all workers finish before counter is set.
+        // If produce fails, delete the key so it is reset correctly on retry.
         await redis.set(remainingKey(campaignId), totalFannedOut);
 
-        // Produce all in one batch
-        await producer.send({ topic: Topics.EMAIL_SEND, messages: allMessages });
+        try {
+          await producer.send({ topic: Topics.EMAIL_SEND, messages: allMessages });
+        } catch (err) {
+          await redis.del(remainingKey(campaignId));
+          throw err;
+        }
 
         // Update campaign total
         await prisma.campaign.update({
@@ -123,4 +152,5 @@ export async function startDispatcher(consumer: Consumer, producer: Producer): P
       }
     },
   });
+  markUp('dispatcher');
 }

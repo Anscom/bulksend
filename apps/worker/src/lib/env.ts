@@ -11,6 +11,8 @@ const schema = z.object({
   KAFKA_SSL: z.string().default('false'),
   BREVO_API_KEY: z.string().min(1),
   KAFKA_GROUP_ID_SUFFIX: z.string().default(''),
+  TRACKING_SECRET: z.string().default('dev-tracking-secret'),
+  APP_URL: z.string().default('http://localhost:3001'),
 });
 
 const parsed = schema.safeParse(process.env);

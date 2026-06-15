@@ -47,7 +47,7 @@ export async function signup(
     return [ws, u] as const;
   });
 
-  return issueTokens(user.id, workspace.id, user.email, user.role);
+  return await issueTokens(user.id, workspace.id, user.email, user.role);
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
@@ -57,7 +57,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw Errors.unauthorized();
 
-  const tokens = issueTokens(user.id, user.workspaceId, user.email, user.role);
+  const tokens = await issueTokens(user.id, user.workspaceId, user.email, user.role);
 
   // Ensure the default "Active Subscribers" segment exists for this workspace
   const existing = await prisma.segment.findFirst({
@@ -103,7 +103,7 @@ export async function switchWorkspace(userId: string, targetWorkspaceId: string)
 
   // Switching to their primary workspace
   if (user.workspaceId === targetWorkspaceId) {
-    return issueTokens(user.id, user.workspaceId, user.email, user.role);
+    return await issueTokens(user.id, user.workspaceId, user.email, user.role);
   }
 
   // Switching to a workspace granted via WorkspaceAccess
@@ -112,7 +112,7 @@ export async function switchWorkspace(userId: string, targetWorkspaceId: string)
   });
   if (!access) throw Errors.forbidden();
 
-  return issueTokens(user.id, targetWorkspaceId, user.email, access.role);
+  return await issueTokens(user.id, targetWorkspaceId, user.email, access.role);
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {
@@ -137,7 +137,7 @@ export async function refresh(refreshToken: string): Promise<AuthTokens> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: payload.userId } });
   await redis.hset(sessKey(payload.sid), { rtHash: hashedToken });
 
-  return issueTokens(user.id, user.workspaceId, user.email, user.role, payload.sid);
+  return await issueTokens(user.id, user.workspaceId, user.email, user.role, payload.sid);
 }
 
 export async function logout(jti: string, userId: string, sid: string): Promise<void> {
@@ -147,13 +147,13 @@ export async function logout(jti: string, userId: string, sid: string): Promise<
   await redis.srem(userSessionsKey(userId), sid);
 }
 
-function issueTokens(
+async function issueTokens(
   userId: string,
   workspaceId: string,
   email: string,
   role: string,
   existingSid?: string,
-): AuthTokens {
+): Promise<AuthTokens> {
   const jti = uuidv4();
   const sid = existingSid ?? uuidv4();
 
@@ -170,7 +170,7 @@ function issueTokens(
   pipeline.hset(sessKey(sid), { userId, workspaceId, role });
   pipeline.expire(sessKey(sid), SESSION_TTL);
   pipeline.sadd(userSessionsKey(userId), sid);
-  pipeline.exec().catch(console.error);
+  await pipeline.exec();
 
   return { accessToken, refreshToken, expiresIn: 15 * 60 };
 }

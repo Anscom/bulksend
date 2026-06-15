@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Topbar } from '../../components/layout/Topbar.js';
 import { segmentsApi } from '../../lib/api/segments.js';
+import { useWorkspaceStore } from '../../stores/workspace.store.js';
 import type { Segment, CreateSegmentRequest } from '@bulksend/shared';
+import { formatDate } from '../../lib/utils/format.js';
 
 // ── filter builder types ────────────────────────────────────────────────────
 
@@ -48,10 +50,6 @@ function makeRow(id: number): FilterRow {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 function describeFilter(f: { field: string; operator: string; value: unknown }): string {
   const field = FIELDS.find(x => x.id === f.field)?.label ?? f.field;
@@ -179,6 +177,7 @@ const PAGE_SIZE = 50;
 export function SegmentsPage() {
   const navigate       = useNavigate();
   const { onMenuOpen } = useOutletContext<{ onMenuOpen: () => void }>();
+  const workspace      = useWorkspaceStore(s => s.workspace);
 
   const [segments, setSegments]     = useState<Segment[]>([]);
   const [total,    setTotal]        = useState(0);
@@ -280,7 +279,7 @@ export function SegmentsPage() {
 
   return (
     <div className="view active">
-      <Topbar crumb="Acme Marketing" title="Segments" onMenuOpen={onMenuOpen} />
+      <Topbar crumb={workspace?.name ?? 'Segments'} title="Segments" onMenuOpen={onMenuOpen} />
       <div style={{ padding: '28px 24px 60px', maxWidth: 1240, margin: '0 auto' }}>
 
         {/* KPI strip */}
@@ -345,9 +344,7 @@ export function SegmentsPage() {
                   </tr>
                 )}
                 {filtered.map(seg => {
-                  const filters = Array.isArray(seg.filters)
-                    ? seg.filters
-                    : (JSON.parse(seg.filters as unknown as string) as typeof seg.filters);
+                  const filters = seg.filters;
 
                   return (
                     <tr key={seg.id} onClick={() => navigate(`/segments/${seg.id}`)}>

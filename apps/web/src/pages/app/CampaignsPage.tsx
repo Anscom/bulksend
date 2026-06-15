@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/Badge.js';
 import { campaignsApi } from '../../lib/api/campaigns.js';
 import { analyticsApi, type CampaignPerformanceRow } from '../../lib/api/analytics.js';
 import type { Campaign, CampaignStatus } from '@bulksend/shared';
+import { formatDate as _formatDate } from '../../lib/utils/format.js';
 
 type TabKey = 'all' | CampaignStatus;
 
@@ -13,7 +14,7 @@ function formatDate(iso: string | Date | null | undefined): string {
   const d = new Date(iso as string);
   if (isNaN(d.getTime())) return '—';
   if (d.toDateString() === new Date().toDateString()) return 'Today';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return _formatDate(d);
 }
 
 function RateBar({ value, coral }: { value: number | null; coral?: boolean }) {
@@ -229,7 +230,7 @@ export function CampaignsPage() {
                       <td className="hide-sm t-mono">{c.totalRecipients > 0 ? c.totalRecipients.toLocaleString() : '—'}</td>
                       <td><RateBar value={perf?.openRate  ?? null} /></td>
                       <td><RateBar value={perf?.clickRate ?? null} coral /></td>
-                      <td className="hide-sm t-mute">{formatDate((c.sentAt ?? c.scheduledAt ?? c.createdAt) as unknown as string)}</td>
+                      <td className="hide-sm t-mute">{formatDate(c.sentAt ?? c.scheduledAt ?? c.createdAt)}</td>
                       <td className="t-actions" onClick={e => e.stopPropagation()}>
                         <button className="t-more" onClick={e => openMenu(e, c.id)}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>

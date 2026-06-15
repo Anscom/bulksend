@@ -1,4 +1,5 @@
 import type { Consumer } from 'kafkajs';
+import { markUp, markDown } from '../lib/health.js';
 import { Topics } from '@bulksend/shared';
 import type { EmailEventPayload } from '@bulksend/shared';
 import { prisma } from '../db/client.js';
@@ -8,6 +9,7 @@ export async function startEventWorker(consumer: Consumer): Promise<void> {
   await consumer.connect();
   await consumer.subscribe({ topic: Topics.EMAIL_EVENTS, fromBeginning: false });
 
+  consumer.on(consumer.events.CRASH, () => markDown('eventWorker'));
   await consumer.run({
     autoCommit: false,
     eachMessage: async ({ message, partition, topic }) => {
@@ -24,12 +26,11 @@ export async function startEventWorker(consumer: Consumer): Promise<void> {
         if (!sendId && raw.providerMessageId) {
           const send = await prisma.send.findUnique({
             where: { providerMessageId: raw.providerMessageId },
-            select: { id: true, campaignId: true, workspaceId: true },
+            select: { id: true, campaignId: true, workspaceId: true, contactId: true },
           });
           if (!send) {
-            logger.warn({ providerMessageId: raw.providerMessageId }, 'Send not found for event');
-            await commitOffset(consumer, topic, partition, message.offset);
-            return;
+            // Throw so KafkaJS retries — the Send record may not have been written yet
+            throw new Error(`Send not found for providerMessageId ${raw.providerMessageId}`);
           }
           sendId = send.id;
           campaignId = send.campaignId;
@@ -44,7 +45,7 @@ export async function startEventWorker(consumer: Consumer): Promise<void> {
             campaignId,
             workspaceId,
             type: raw.type,
-            metadata: raw.metadata,
+            metadata: raw.metadata as never,
             providerEventId: raw.providerEventId,
             occurredAt: new Date(raw.occurredAt),
           },
@@ -66,6 +67,7 @@ export async function startEventWorker(consumer: Consumer): Promise<void> {
       }
     },
   });
+  markUp('eventWorker');
 }
 
 async function commitOffset(

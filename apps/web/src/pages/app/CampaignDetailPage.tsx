@@ -6,6 +6,7 @@ import { campaignsApi, type CampaignSendRow } from '../../lib/api/campaigns.js';
 import { contactsApi } from '../../lib/api/contacts.js';
 import { segmentsApi } from '../../lib/api/segments.js';
 import type { Campaign, CampaignStats, ContactStatus, CreateContactRequest, Segment } from '@bulksend/shared';
+import { formatDate as _formatDate } from '../../lib/utils/format.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ function formatDate(d: Date | string | null | undefined): string {
   const dt = new Date(d as string);
   if (isNaN(dt.getTime())) return '—';
   if (dt.toDateString() === new Date().toDateString()) return 'Today';
-  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return _formatDate(dt);
 }
 function formatTime(d: Date | string | null | undefined): string {
   if (!d) return '';

@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { Topbar } from '../../components/layout/Topbar.js';
 import { contactsApi } from '../../lib/api/contacts.js';
 import { ImportModal } from '../../components/contacts/ImportModal.js';
+import { useWorkspaceStore } from '../../stores/workspace.store.js';
 import type { Contact, ContactStatus } from '@bulksend/shared';
 
 const PAGE_SIZE = 50;
@@ -40,13 +41,16 @@ const INPUT_STYLE: React.CSSProperties = {
 
 export function ContactsPage() {
   const { onMenuOpen } = useOutletContext<{ onMenuOpen: () => void }>();
+  const workspace = useWorkspaceStore(s => s.workspace);
 
   // table state
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [total,    setTotal]    = useState(0);
-  const [page,     setPage]     = useState(1);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState('');
+  const [contacts,    setContacts]    = useState<Contact[]>([]);
+  const [total,       setTotal]       = useState(0);
+  const [cursor,      setCursor]      = useState<string | null>(null);
+  const [nextCursor,  setNextCursor]  = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
 
   // filter state
   const [activeTab, setActiveTab] = useState<TabKey>('all');
@@ -82,52 +86,58 @@ export function ContactsPage() {
   const [formError, setFormError] = useState('');
   const [saving,    setSaving]    = useState(false);
 
-  // debounce search — reset page when search changes
+  function resetCursor() {
+    setCursor(null);
+    setNextCursor(null);
+    setCursorStack([]);
+  }
+
+  // debounce search — reset cursor when search changes
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
+      resetCursor();
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
 
-  // reset page when tab changes
+  // reset cursor when tab changes
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
-    setPage(1);
+    resetCursor();
   }
 
-  // bump this to force a re-fetch without changing page/tab/search
+  // bump this to force a re-fetch without changing cursor/tab/search
   const [listKey, setListKey] = useState(0);
-  function refreshList() { setListKey(k => k + 1); }
+  function refreshList() { resetCursor(); setListKey(k => k + 1); }
 
-  // fetch contacts whenever page/tab/search changes
+  // fetch contacts whenever cursor/tab/search changes
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError('');
     const status = activeTab === 'all' ? undefined : activeTab;
-    contactsApi.list(page, PAGE_SIZE, status, debouncedSearch || undefined)
-      .then(({ items, total: t }) => {
-        if (!cancelled) { setContacts(items); setTotal(t); setSelected(new Set()); }
+    contactsApi.list(PAGE_SIZE, status, debouncedSearch || undefined, cursor ?? undefined)
+      .then(({ items, total: t, nextCursor: nc }: { items: Contact[]; total: number; nextCursor: string | null }) => {
+        if (!cancelled) { setContacts(items); setTotal(t); setNextCursor(nc); setSelected(new Set()); }
       })
       .catch(() => { if (!cancelled) setError('Failed to load contacts'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page, activeTab, debouncedSearch, listKey]);
+  }, [cursor, activeTab, debouncedSearch, listKey]);
 
   // fetch counts for KPI cards (re-runs after mutations)
   const [countKey, setCountKey] = useState(0);
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      contactsApi.list(1, 1),
-      contactsApi.list(1, 1, 'subscribed'),
-      contactsApi.list(1, 1, 'unsubscribed'),
-      contactsApi.list(1, 1, 'bounced'),
-    ]).then(([all, sub, unsub, bounced]) => {
+      contactsApi.list(1),
+      contactsApi.list(1, 'subscribed'),
+      contactsApi.list(1, 'unsubscribed'),
+      contactsApi.list(1, 'bounced'),
+    ]).then(([all, sub, unsub, bounced]: Array<{ total: number }>) => {
       if (!cancelled) setCounts({
         all:          all.total,
         subscribed:   sub.total,
@@ -153,7 +163,6 @@ export function ContactsPage() {
       });
       setShowModal(false);
       setForm({ firstName: '', lastName: '', email: '', status: 'subscribed' });
-      setPage(1);
       refreshList();
       refreshCounts();
     } catch (e: unknown) {
@@ -180,12 +189,13 @@ export function ContactsPage() {
     } catch { /* keep rows */ }
   }
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
   const tabCount = (k: TabKey) => counts[k];
+  const hasPrev = cursorStack.length > 0;
+  const hasNext = nextCursor !== null;
 
   return (
     <div className="view active">
-      <Topbar crumb="Acme Marketing" title="Contacts" onMenuOpen={onMenuOpen} />
+      <Topbar crumb={workspace?.name ?? 'Contacts'} title="Contacts" onMenuOpen={onMenuOpen} />
       <div style={{ padding: '28px 24px 60px', maxWidth: 1240, margin: '0 auto' }}>
 
         {/* KPI strip */}
@@ -238,6 +248,14 @@ export function ContactsPage() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+            <a
+              className="btn btn-ghost btn-sm"
+              href={contactsApi.export(activeTab === 'all' ? undefined : activeTab)}
+              download="contacts.csv"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Export
+            </a>
             <button className="btn btn-ghost btn-sm" onClick={() => setShowImport(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               Import
@@ -362,28 +380,29 @@ export function ContactsPage() {
         </div>
 
         {/* pagination */}
-        {!loading && totalPages > 1 && (
+        {!loading && (hasPrev || hasNext) && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--slate)' }}>
-              {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(page * PAGE_SIZE, total).toLocaleString()} of {total.toLocaleString()}
+              {contacts.length.toLocaleString()} of {total.toLocaleString()} contacts
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
-              {/* page number chips — show up to 7 */}
-              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                const p = totalPages <= 7 ? i + 1 : page <= 4 ? i + 1 : page >= totalPages - 3 ? totalPages - 6 + i : page - 3 + i;
-                return (
-                  <button
-                    key={p}
-                    className={`btn btn-sm ${p === page ? 'btn-primary' : 'btn-ghost'}`}
-                    style={{ minWidth: 36 }}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-              <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={!hasPrev}
+                onClick={() => {
+                  const prev = cursorStack.at(-1) ?? null;
+                  setCursorStack(s => s.slice(0, -1));
+                  setCursor(prev);
+                }}
+              >← Prev</button>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={!hasNext}
+                onClick={() => {
+                  setCursorStack(s => [...s, cursor ?? '']);
+                  setCursor(nextCursor);
+                }}
+              >Next →</button>
             </div>
           </div>
         )}
@@ -431,7 +450,7 @@ export function ContactsPage() {
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
-          onImported={() => { refreshCounts(); setPage(1); }}
+          onImported={() => { refreshCounts(); refreshList(); }}
         />
       )}
 

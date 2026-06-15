@@ -1,11 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
 import 'express-async-errors';
 import { v4 as uuidv4 } from 'uuid';
 
 import { errorHandler } from './lib/errors.js';
 import { logger } from './lib/logger.js';
+import { prisma } from './db/client.js';
+import { redis } from './redis/client.js';
+import { openApiSpec } from './docs/spec.js';
 
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -50,8 +54,20 @@ export function createApp() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // Health check (GCP Cloud Run liveness probe)
+  // Liveness probe — always fast, no dependencies
   app.get('/health', (_req, res) => res.json({ ok: true, service: 'api' }));
+
+  // Readiness probe — fails if DB or Redis is unreachable
+  app.get('/ready', async (_req, res) => {
+    const checks: Record<string, 'ok' | 'error'> = {};
+    try { await prisma.$queryRaw`SELECT 1`; checks['db'] = 'ok'; } catch { checks['db'] = 'error'; }
+    try { await redis.ping(); checks['redis'] = 'ok'; } catch { checks['redis'] = 'error'; }
+    const healthy = Object.values(checks).every(v => v === 'ok');
+    res.status(healthy ? 200 : 503).json({ ok: healthy, checks });
+  });
+
+  // API docs — Helmet CSP is relaxed for this path only
+  app.use('/api-docs', helmet({ contentSecurityPolicy: false }), swaggerUi.serve, swaggerUi.setup(openApiSpec as never));
 
   // Public routes (tracking, webhooks) — no auth middleware
   app.use('/t', trackingRoutes);

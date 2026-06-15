@@ -1,12 +1,15 @@
 import { prisma } from '../db/client.js';
+import { redis } from '../redis/client.js';
 import { Errors } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
-import { runDispatch } from './dispatch.service.js';
+import { getProducer } from '../kafka/producer.js';
+import { Topics } from '@bulksend/shared';
 import type {
   Campaign,
   CreateCampaignRequest,
   UpdateCampaignRequest,
   CampaignStats,
+  CampaignDispatchPayload,
 } from '@bulksend/shared';
 
 export async function listCampaigns(
@@ -23,13 +26,13 @@ export async function listCampaigns(
     }),
     prisma.campaign.count({ where: { workspaceId } }),
   ]);
-  return { items: items as unknown as Campaign[], total };
+  return { items: items as Campaign[], total };
 }
 
 export async function getCampaign(id: string, workspaceId: string): Promise<Campaign> {
   const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
   if (!campaign) throw Errors.notFound('Campaign');
-  return campaign as unknown as Campaign;
+  return campaign as Campaign;
 }
 
 export async function createCampaign(
@@ -39,7 +42,7 @@ export async function createCampaign(
   const campaign = await prisma.campaign.create({
     data: { ...data, workspaceId, status: 'draft' },
   });
-  return campaign as unknown as Campaign;
+  return campaign as Campaign;
 }
 
 export async function updateCampaign(
@@ -53,7 +56,7 @@ export async function updateCampaign(
     throw Errors.unprocessable('Only draft campaigns can be edited');
   }
   const updated = await prisma.campaign.update({ where: { id }, data });
-  return updated as unknown as Campaign;
+  return updated as Campaign;
 }
 
 export async function deleteCampaign(id: string, workspaceId: string): Promise<void> {
@@ -88,14 +91,21 @@ export async function scheduleCampaign(
       metadata: { campaignId: id },
     },
   });
-  return updated as unknown as Campaign;
+  return updated as Campaign;
 }
 
 export async function sendCampaign(
   id: string,
   workspaceId: string,
-  _idempotencyKey: string,
+  idempotencyKey: string,
 ): Promise<Campaign> {
+  const ikKey = `ik:send:${workspaceId}:${idempotencyKey}`;
+  if (await redis.get(ikKey)) {
+    const current = await prisma.campaign.findFirst({ where: { id, workspaceId } });
+    if (!current) throw Errors.notFound('Campaign');
+    return current as Campaign;
+  }
+
   const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
   if (!campaign) throw Errors.notFound('Campaign');
   if (!['draft', 'scheduled'].includes(campaign.status)) {
@@ -107,13 +117,26 @@ export async function sendCampaign(
     data: { status: 'sending' },
   });
 
-  setImmediate(() => {
-    runDispatch(id, workspaceId).catch((err) => {
-      logger.error({ err, campaignId: id }, 'Background dispatch failed');
-    });
-  });
+  const payload: CampaignDispatchPayload = {
+    campaignId: id,
+    workspaceId,
+    dispatchedAt: new Date().toISOString(),
+  };
 
-  return updated as unknown as Campaign;
+  try {
+    const producer = await getProducer();
+    await producer.send({
+      topic: Topics.CAMPAIGN_DISPATCH,
+      messages: [{ key: id, value: JSON.stringify(payload) }],
+    });
+    await redis.set(ikKey, id, { ex: 86400 });
+  } catch (err) {
+    await prisma.campaign.update({ where: { id }, data: { status: campaign.status } });
+    logger.error({ err, campaignId: id }, 'Kafka publish failed, rolled back campaign status');
+    throw err;
+  }
+
+  return updated as Campaign;
 }
 
 export async function pauseCampaign(id: string, workspaceId: string): Promise<Campaign> {
@@ -121,27 +144,47 @@ export async function pauseCampaign(id: string, workspaceId: string): Promise<Ca
   if (!campaign) throw Errors.notFound('Campaign');
   if (campaign.status !== 'sending') throw Errors.unprocessable('Only sending campaigns can be paused');
   const updated = await prisma.campaign.update({ where: { id }, data: { status: 'paused' } });
-  return updated as unknown as Campaign;
+  return updated as Campaign;
 }
 
 export async function resumeCampaign(
   id: string,
   workspaceId: string,
-  _idempotencyKey: string,
+  idempotencyKey: string,
 ): Promise<Campaign> {
+  const ikKey = `ik:resume:${workspaceId}:${idempotencyKey}`;
+  if (await redis.get(ikKey)) {
+    const current = await prisma.campaign.findFirst({ where: { id, workspaceId } });
+    if (!current) throw Errors.notFound('Campaign');
+    return current as Campaign;
+  }
+
   const campaign = await prisma.campaign.findFirst({ where: { id, workspaceId } });
   if (!campaign) throw Errors.notFound('Campaign');
   if (campaign.status !== 'paused') throw Errors.unprocessable('Campaign is not paused');
 
   const updated = await prisma.campaign.update({ where: { id }, data: { status: 'sending' } });
 
-  setImmediate(() => {
-    runDispatch(id, workspaceId).catch((err) => {
-      logger.error({ err, campaignId: id }, 'Background dispatch failed');
-    });
-  });
+  const payload: CampaignDispatchPayload = {
+    campaignId: id,
+    workspaceId,
+    dispatchedAt: new Date().toISOString(),
+  };
 
-  return updated as unknown as Campaign;
+  try {
+    const producer = await getProducer();
+    await producer.send({
+      topic: Topics.CAMPAIGN_DISPATCH,
+      messages: [{ key: id, value: JSON.stringify(payload) }],
+    });
+    await redis.set(ikKey, id, { ex: 86400 });
+  } catch (err) {
+    await prisma.campaign.update({ where: { id }, data: { status: 'paused' } });
+    logger.error({ err, campaignId: id }, 'Kafka publish failed, rolled back campaign status');
+    throw err;
+  }
+
+  return updated as Campaign;
 }
 
 export type CampaignSendRow = {

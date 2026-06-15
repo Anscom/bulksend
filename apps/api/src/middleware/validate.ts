@@ -14,7 +14,7 @@ export function validate<T>(target: Target, schema: ZodSchema<T>) {
     const result = schema.safeParse(req[target]);
     if (!result.success) return next(result.error);
     // Replace with parsed/coerced data
-    (req as unknown as Record<string, unknown>)[target] = result.data;
+    Object.assign(req, { [target]: result.data });
     next();
   };
 }

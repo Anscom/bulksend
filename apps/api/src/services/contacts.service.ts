@@ -5,31 +5,34 @@ import { redis } from '../redis/client.js';
 import { suppKey, suppLoadedKey } from '../redis/keys.js';
 import type { Contact, CreateContactRequest, UpdateContactRequest } from '@bulksend/shared';
 import { refreshSegmentCounts } from './segments.service.js';
+import { toContact } from '../lib/mappers.js';
 
 export async function listContacts(
   workspaceId: string,
-  page = 1,
   pageSize = 50,
   status?: string,
   search?: string,
-): Promise<{ items: Contact[]; total: number }> {
+  cursor?: string,
+): Promise<{ items: Contact[]; total: number; nextCursor: string | null }> {
   const where = {
     workspaceId,
     deletedAt: null,
     ...(status ? { status: status as never } : {}),
     ...(search ? { OR: [{ email: { contains: search } }, { firstName: { contains: search } }] } : {}),
+    ...(cursor ? { id: { gt: cursor } } : {}),
   };
   const [items, total] = await Promise.all([
-    prisma.contact.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
-    prisma.contact.count({ where }),
+    prisma.contact.findMany({ where, orderBy: { id: 'asc' }, take: pageSize }),
+    prisma.contact.count({ where: { workspaceId, deletedAt: null, ...(status ? { status: status as never } : {}), ...(search ? { OR: [{ email: { contains: search } }, { firstName: { contains: search } }] } : {}) } }),
   ]);
-  return { items: items as unknown as Contact[], total };
+  const nextCursor = items.length === pageSize ? (items.at(-1)?.id ?? null) : null;
+  return { items: items.map(toContact), total, nextCursor };
 }
 
 export async function getContact(id: string, workspaceId: string): Promise<Contact> {
   const contact = await prisma.contact.findFirst({ where: { id, workspaceId, deletedAt: null } });
   if (!contact) throw Errors.notFound('Contact');
-  return contact as unknown as Contact;
+  return toContact(contact);
 }
 
 export async function createContact(
@@ -42,7 +45,7 @@ export async function createContact(
   const contact = await prisma.contact.create({
     data: { ...data, workspaceId, status: 'subscribed', attributes: (data.attributes ?? {}) as object },
   });
-  return contact as unknown as Contact;
+  return toContact(contact);
 }
 
 export async function updateContact(
@@ -76,7 +79,7 @@ export async function updateContact(
     refreshSegmentCounts(workspaceId).catch(() => {});
   }
 
-  return updated as unknown as Contact;
+  return toContact(updated);
 }
 
 export async function deleteContact(id: string, workspaceId: string): Promise<void> {
@@ -118,7 +121,29 @@ export async function importContacts(
     imported++;
   }
 
+  refreshSegmentCounts(workspaceId).catch(() => {});
   return { imported, skipped };
+}
+
+export async function exportContacts(workspaceId: string, status?: string): Promise<string> {
+  const where = {
+    workspaceId,
+    deletedAt: null,
+    ...(status ? { status: status as never } : {}),
+  };
+  const contacts = await prisma.contact.findMany({
+    where,
+    orderBy: { id: 'asc' },
+    select: { id: true, email: true, firstName: true, lastName: true, status: true, createdAt: true },
+  });
+
+  const header = 'id,email,firstName,lastName,status,createdAt';
+  const rows = contacts.map((c) =>
+    [c.id, c.email, c.firstName ?? '', c.lastName ?? '', c.status, c.createdAt.toISOString()]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(','),
+  );
+  return [header, ...rows].join('\n');
 }
 
 export async function unsubscribeByToken(token: string, workspaceId: string): Promise<void> {
